@@ -177,7 +177,7 @@ namespace Server_HTML_Handler.Services
                 {
                     await conn.OpenAsync();
                     using (var cmd = new SqlCommand(@"
-                        SELECT TOP 1 id, device_id, ISNULL([location], 'QC Lab'), [timestamp], temperature_c, humidity_pct
+                        SELECT TOP 1 id, device_id, ISNULL(station_id, 'QC Lab'), [timestamp], temperature_c, humidity_pct
                         FROM dbo.readings WITH (NOLOCK)
                         ORDER BY [timestamp] DESC", conn))
                     {
@@ -209,8 +209,16 @@ namespace Server_HTML_Handler.Services
                     if (item.IsAlert)
                     {
                         int interval = AlertIntervalMinutes > 0 ? AlertIntervalMinutes : 60;
-                        // Check if custom interval has elapsed since last alert dispatch
-                        if (DateTime.Now - LastAlertDispatchedTime >= TimeSpan.FromMinutes(interval))
+
+                        // Freshness check: if reading timestamp has lapsed beyond the interval or hour (e.g. from 12 o'clock but now 1 PM), do not send stale alert
+                        TimeSpan readingAge = DateTime.Now - item.Timestamp;
+                        if (readingAge < TimeSpan.Zero) readingAge = TimeSpan.Zero;
+
+                        if (readingAge.TotalMinutes > interval)
+                        {
+                            Log($"Skipping stale alert for reading #{item.Id} from {item.DisplayTime} (age {readingAge.TotalMinutes:F1} min > {interval} min interval).");
+                        }
+                        else if (DateTime.Now - LastAlertDispatchedTime >= TimeSpan.FromMinutes(interval))
                         {
                             await DispatchEnvironmentAlertAsync(item);
                         }
@@ -233,7 +241,7 @@ namespace Server_HTML_Handler.Services
                 {
                     await conn.OpenAsync();
                     using (var cmd = new SqlCommand(@"
-                        SELECT TOP (@lim) id, device_id, ISNULL([location], 'QC Lab'), [timestamp], temperature_c, humidity_pct
+                        SELECT TOP (@lim) id, device_id, ISNULL(station_id, 'QC Lab'), [timestamp], temperature_c, humidity_pct
                         FROM dbo.readings WITH (NOLOCK)
                         ORDER BY [timestamp] DESC", conn))
                     {
