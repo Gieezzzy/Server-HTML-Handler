@@ -1,7 +1,9 @@
 using System;
 using System.Collections.Generic;
 using System.Data.SqlClient;
+using System.IO;
 using System.Threading.Tasks;
+using Newtonsoft.Json;
 
 namespace Server_HTML_Handler.Services
 {
@@ -54,10 +56,15 @@ namespace Server_HTML_Handler.Services
         }
     }
 
+    public class KonginConfigState
+    {
+        public int AlertIntervalMinutes { get; set; } = 60;
+    }
+
     /// <summary>
     /// Service monitoring Kongin datalogger readings on dtp-qclab03\sqlexpress.
     /// Checks standards: Temp 23 ± 2°C (21-25°C), Humidity 55 ± 10% (45-65%).
-    /// Sends out-of-spec alert notifications via Synology & Android push hourly (throttled to once per hour).
+    /// Sends out-of-spec alert notifications via Synology & Android push at a custom interval (default 60 min).
     /// </summary>
     public class KonginTrackerService
     {
@@ -71,6 +78,11 @@ namespace Server_HTML_Handler.Services
 
         public const string CategoryEnvironmentAlert = "ENVIRONMENT_ALERT";
 
+        /// <summary>
+        /// Custom alert dispatch interval in minutes (default 60 minutes).
+        /// </summary>
+        public int AlertIntervalMinutes { get; set; } = 60;
+
         public KonginReadingItem LatestReading { get; private set; }
         public DateTime LastCheckedTime { get; private set; } = DateTime.MinValue;
         public DateTime LastAlertDispatchedTime { get; private set; } = DateTime.MinValue;
@@ -81,13 +93,53 @@ namespace Server_HTML_Handler.Services
         private System.Threading.Timer _timer;
         private bool _isChecking = false;
 
+        private static string ConfigFilePath =>
+            Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "ServerHTMLHandler", "kongin-config.json");
+
         public KonginTrackerService()
         {
+            LoadConfig();
             // Auto start background check every 60 seconds
             _timer = new System.Threading.Timer(TimerCallback, null, TimeSpan.FromSeconds(5), TimeSpan.FromSeconds(60));
         }
 
-        private void Log(string message)
+        public void LoadConfig()
+        {
+            try
+            {
+                if (File.Exists(ConfigFilePath))
+                {
+                    string json = File.ReadAllText(ConfigFilePath);
+                    var state = JsonConvert.DeserializeObject<KonginConfigState>(json);
+                    if (state != null && state.AlertIntervalMinutes > 0)
+                    {
+                        AlertIntervalMinutes = state.AlertIntervalMinutes;
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Log($"LoadConfig error: {ex.Message}");
+            }
+        }
+
+        public void SaveConfig()
+        {
+            try
+            {
+                var state = new KonginConfigState { AlertIntervalMinutes = AlertIntervalMinutes };
+                string dir = Path.GetDirectoryName(ConfigFilePath);
+                if (!Directory.Exists(dir)) Directory.CreateDirectory(dir);
+                File.WriteAllText(ConfigFilePath, JsonConvert.SerializeObject(state, Formatting.Indented));
+                Log($"Configuration saved: AlertInterval = {AlertIntervalMinutes} minutes");
+            }
+            catch (Exception ex)
+            {
+                Log($"SaveConfig error: {ex.Message}");
+            }
+        }
+
+        public void Log(string message)
         {
             string entry = $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] [KonginTracker] {message}";
             try
@@ -156,8 +208,9 @@ namespace Server_HTML_Handler.Services
                     // Evaluate alert condition: Temp 23+-2 (21-25), Humidity 55+-10 (45-65)
                     if (item.IsAlert)
                     {
-                        // Check if 1 hour has elapsed since last alert dispatch
-                        if (DateTime.Now - LastAlertDispatchedTime >= TimeSpan.FromMinutes(60))
+                        int interval = AlertIntervalMinutes > 0 ? AlertIntervalMinutes : 60;
+                        // Check if custom interval has elapsed since last alert dispatch
+                        if (DateTime.Now - LastAlertDispatchedTime >= TimeSpan.FromMinutes(interval))
                         {
                             await DispatchEnvironmentAlertAsync(item);
                         }
@@ -222,7 +275,7 @@ namespace Server_HTML_Handler.Services
                              $"Current Temperature: {item.DisplayTemp} (Standard: 23.0 ± 2.0°C)\n" +
                              $"Current Humidity: {item.DisplayHum} (Standard: 55 ± 10%)\n" +
                              $"Status: {item.AlertDescription}\n" +
-                             $"⚠️ Immediate environmental conditioning required! Notification repeats hourly if out of range.";
+                             $"⚠️ Immediate environmental conditioning required! Alert repeats every {AlertIntervalMinutes} minute(s) while out of range.";
 
             Log($"Dispatching environment alert: {item.AlertDescription}");
 

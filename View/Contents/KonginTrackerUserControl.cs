@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Drawing;
 using System.Linq;
@@ -38,6 +38,9 @@ namespace Server_HTML_Handler.View.Contents
         private System.Windows.Forms.Panel pnlActions;
         private Button btnRefresh;
         private Button btnSendTestAlert;
+        private Label lblInterval;
+        private NumericUpDown numAlertInterval;
+        private Button btnSaveInterval;
         private Label lblLastChecked;
 
         private DataGridView dgvReadings;
@@ -65,6 +68,7 @@ namespace Server_HTML_Handler.View.Contents
 
             this.Load += async (s, e) =>
             {
+                numAlertInterval.Value = Math.Max(1, Math.Min(1440, _service.AlertIntervalMinutes));
                 await RefreshDataAsync();
                 await LoadRecipientsAsync();
             };
@@ -107,7 +111,7 @@ namespace Server_HTML_Handler.View.Contents
             this.lblHeaderSubtitle.Font = new Font("Segoe UI", 8.5F);
             this.lblHeaderSubtitle.ForeColor = Color.FromArgb(170, 175, 185);
             this.lblHeaderSubtitle.Location = new Point(16, 36);
-            this.lblHeaderSubtitle.Text = "Standard: Temp 23 ± 2°C (21.0 - 25.0°C) | Humidity 55 ± 10% (45.0 - 65.0%). Alerts sent hourly when out-of-range.";
+            this.lblHeaderSubtitle.Text = "Standard: Temp 23 ± 2°C (21.0 - 25.0°C) | Humidity 55 ± 10% (45.0 - 65.0%). Configurable custom alert interval.";
 
             // Cards Panel
             this.pnlCards = new System.Windows.Forms.Panel();
@@ -128,7 +132,7 @@ namespace Server_HTML_Handler.View.Contents
             // Card 3: Alert Status
             this.cardStatus = CreateCard("🛡️ Threshold Status", out lblStatusTitle, out lblStatusValue, out lblStatusSub, 605, Color.FromArgb(241, 196, 15));
             lblStatusValue.Text = "Normal";
-            lblStatusSub.Text = "Hourly notification ready";
+            lblStatusSub.Text = $"Alert interval: {_service.AlertIntervalMinutes} min";
 
             this.pnlCards.Controls.AddRange(new Control[] { cardTemp, cardHum, cardStatus });
 
@@ -141,9 +145,9 @@ namespace Server_HTML_Handler.View.Contents
 
             this.btnRefresh = new Button
             {
-                Text = "↻ Refresh Now",
+                Text = "↻ Refresh",
                 Location = new Point(15, 7),
-                Size = new Size(120, 28),
+                Size = new Size(95, 28),
                 BackColor = Color.FromArgb(0, 120, 215),
                 ForeColor = Color.White,
                 FlatStyle = FlatStyle.Flat,
@@ -154,9 +158,9 @@ namespace Server_HTML_Handler.View.Contents
 
             this.btnSendTestAlert = new Button
             {
-                Text = "⚡ Test Alert Dispatch",
-                Location = new Point(145, 7),
-                Size = new Size(160, 28),
+                Text = "⚡ Test Alert",
+                Location = new Point(118, 7),
+                Size = new Size(100, 28),
                 BackColor = Color.FromArgb(230, 126, 34),
                 ForeColor = Color.White,
                 FlatStyle = FlatStyle.Flat,
@@ -176,15 +180,59 @@ namespace Server_HTML_Handler.View.Contents
                 }
             };
 
+            // Custom Notification Interval Controls
+            this.lblInterval = new Label
+            {
+                Text = "⏱ Alert Every (min):",
+                Location = new Point(230, 12),
+                AutoSize = true,
+                ForeColor = Color.FromArgb(220, 220, 220),
+                Font = new Font("Segoe UI Semibold", 8.5F, FontStyle.Bold)
+            };
+
+            this.numAlertInterval = new NumericUpDown
+            {
+                Location = new Point(360, 10),
+                Size = new Size(65, 23),
+                Minimum = 1,
+                Maximum = 1440,
+                Value = _service.AlertIntervalMinutes,
+                BackColor = Color.FromArgb(45, 45, 45),
+                ForeColor = Color.White,
+                BorderStyle = BorderStyle.FixedSingle
+            };
+
+            this.btnSaveInterval = new Button
+            {
+                Text = "💾 Set Interval",
+                Location = new Point(432, 7),
+                Size = new Size(105, 28),
+                BackColor = Color.FromArgb(46, 160, 90),
+                ForeColor = Color.White,
+                FlatStyle = FlatStyle.Flat,
+                Font = new Font("Segoe UI Semibold", 8.5F, FontStyle.Bold),
+                UseVisualStyleBackColor = false
+            };
+            this.btnSaveInterval.Click += (s, e) =>
+            {
+                int newMins = (int)numAlertInterval.Value;
+                _service.AlertIntervalMinutes = newMins;
+                _service.SaveConfig();
+                lblStatusSub.Text = $"Alert interval: {newMins} min";
+                MessageBox.Show($"Out-of-range notification interval set to every {newMins} minute(s)!", "Interval Saved", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            };
+
             this.lblLastChecked = new Label
             {
-                Location = new Point(320, 12),
+                Location = new Point(555, 12),
                 AutoSize = true,
-                ForeColor = Color.FromArgb(180, 180, 180),
+                ForeColor = Color.FromArgb(170, 175, 185),
                 Text = "Last Checked: None"
             };
 
-            this.pnlActions.Controls.AddRange(new Control[] { btnRefresh, btnSendTestAlert, lblLastChecked });
+            this.pnlActions.Controls.AddRange(new Control[] {
+                btnRefresh, btnSendTestAlert, lblInterval, numAlertInterval, btnSaveInterval, lblLastChecked
+            });
 
             // Grid
             this.dgvReadings = new DataGridView();
@@ -329,7 +377,6 @@ namespace Server_HTML_Handler.View.Contents
 
         private void SetupRecipientsControls()
         {
-            var back = Color.FromArgb(24, 24, 24);
             var field = Color.FromArgb(35, 35, 35);
             var accent = Color.FromArgb(0, 229, 255);
 
@@ -355,7 +402,7 @@ namespace Server_HTML_Handler.View.Contents
 
             this.tabRecipients.Controls.Add(new Label
             {
-                Text = "Recipients listed here will receive hourly alerts when QC Lab Temperature (< 21°C or > 25°C) or Humidity (< 45% or > 65%) is out of spec.\n" +
+                Text = "Recipients listed here will receive alerts when QC Lab Temperature (< 21°C or > 25°C) or Humidity (< 45% or > 65%) is out of spec.\n" +
                        "Global 'ALL' recipients will also automatically receive this alert.",
                 Location = new Point(20, 42), Size = new Size(880, 36),
                 ForeColor = Color.FromArgb(160, 160, 160), Font = new Font("Segoe UI", 8.5F)
@@ -402,7 +449,7 @@ namespace Server_HTML_Handler.View.Contents
             this.txtRecipId.KeyDown += async (s, e) => { if (e.KeyCode == Keys.Enter) { e.SuppressKeyPress = true; await AddRecipientsFromTextAsync(); } };
             this.btnRecipRemove.Click += (s, e) => RemoveSelectedRecipients();
             this.btnRecipSave.Click += async (s, e) => await SaveRecipientsAsync();
-                        this.btnRecipReload.Click += async (s, e) =>
+            this.btnRecipReload.Click += async (s, e) =>
             {
                 if (_recipDirty && MessageBox.Show("Discard unsaved changes and reload?", "Reload", MessageBoxButtons.YesNo, MessageBoxIcon.Question) != DialogResult.Yes) return;
                 await LoadRecipientsAsync();
@@ -438,7 +485,7 @@ namespace Server_HTML_Handler.View.Contents
             {
                 lblStatusValue.Text = "✔ IN SPEC";
                 lblStatusValue.ForeColor = Color.FromArgb(46, 204, 113);
-                lblStatusSub.Text = "Optimal lab environment";
+                lblStatusSub.Text = $"Alert interval: {_service.AlertIntervalMinutes} min";
             }
 
             lblLastChecked.Text = $"Last Checked: {item.DisplayTime} (Device #{item.DeviceId})";
