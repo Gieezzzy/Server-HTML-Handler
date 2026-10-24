@@ -204,7 +204,7 @@ namespace Server_HTML_Handler.Services
         public string NotificationPhpUrl { get; set; } = "http://192.168.32.43/send-notification.php";
 
         public string SynologyBotUrl { get; set; } =
-            "https://192.168.32.130:5001/webapi/entry.cgi?api=SYNO.Chat.External&method=chatbot&version=2&token=0GmgVlE4ZZ9h9uCoGt7zSlszyCNXKtLH1bJnFs2RN9XbaN9HwHK6rnsUn5AHtNQo";
+            "https://192.168.32.130:5001/webapi/entry.cgi?api=SYNO.Chat.External&method=chatbot&version=2&token=%22cEiE4qHlTZI8GSboOTS9LOTcYJGq4bgZaAC51vd4lUUXedHUobUAV8nZa3qMPfFn%22";
 
         public double StockThresholdPct { get; set; } = 30.0;
         public int PollIntervalSeconds { get; set; } = 15;
