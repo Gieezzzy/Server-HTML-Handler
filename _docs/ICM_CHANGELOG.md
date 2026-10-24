@@ -28,19 +28,3 @@
 ## Deployment notes
 - After pulling these changes: rebuild **Server HTML Handler** in Visual Studio and restart it; confirm the log shows `WebSocket Server started successfully on ws://0.0.0.0:9000`.
 - Verified: file compiles with Roslyn against Fleck 1.2.0 / Newtonsoft.Json; PHP client tested against a mock WebSocket server. Not yet tested against real phones.
-
-## Phase 121 - Notification Type 'ALL' Global Broadcast Recipients (2026-10-24)
-- **Backup:** _code_backups/v121_notification_type_all_recipients/ (NotificationDispatcherService.cs, NotificationHubUserControl.cs, send-notification.php)
-- **Requirement:** Add an ALL option in Notification Type under the Recipients tab so any Synology ID assigned to ALL automatically receives every system notification.
-- **Database (	bl_NotificationCategory):** Ensured row NotifType = 'ALL' exists in dbRMSAndroid.dbo.tbl_NotificationCategory with default priority HIGH.
-- **C# Dispatcher (NotificationDispatcherService.cs):**
-  - Added TypeAll = "ALL" constant.
-  - Placed All Notifications (Global) at the very top of KnownCategories.
-  - Upgraded GetRecipientsAsync(notifType): When querying recipients for any specific category, it performs a SQL union query (WHERE NotifType = @t OR NotifType = 'ALL') to combine category-specific recipients with global ALL recipients.
-- **PHP Sender (D:\html\send-notification.php):**
-  - Upgraded recipient resolution: SELECT ToChatSynolofyID FROM dbo.tbl_NotificationCategory WHERE UPPER(...) = ? OR UPPER(LTRIM(RTRIM(NotifType))) = 'ALL'.
-  - Merges and deduplicates IDs so every Synology ID listed under ALL receives the broadcast.
-- **UI (NotificationHubUserControl.cs):**
-  - Displays All Notifications (Global) as the first item in the Notification type dropdown.
-  - Editing and saving ALL updates 	bl_NotificationCategory and clears the cache for immediate live application.
-- **Verification:** Both Debug and Release builds compiled cleanly with 0 errors / 0 warnings. PHP syntax validated. Graphify updated and published to D:\html\graphify.html.

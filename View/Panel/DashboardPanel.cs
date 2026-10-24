@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Data;
@@ -23,12 +23,16 @@ namespace Server_HTML_Handler.View.Panel
 
         private bool _isExplicitExit = false;
         private Button btnShareMonitor;
+        private Button btnKonginTracker;
+        private Button btnInboundStocks;
+        private Button btnColorExpiry;
 
         public DashboardPanel()
         {
             InitializeComponent();
             SetupTrayIcon();
             SetupShareMonitorButton();
+            SetupModularNotificationButtons();
         }
 
         private void SetupTrayIcon()
@@ -313,6 +317,71 @@ namespace Server_HTML_Handler.View.Panel
             int n = Services.ShareControlService.Instance.PendingRequests.Count;
             btnShareMonitor.Text = n > 0 ? $"{ShareButtonText} ({n})" : ShareButtonText;
             btnShareMonitor.ForeColor = n > 0 ? Color.FromArgb(255, 99, 71) : Color.FromArgb(0, 188, 212);
+        }
+
+        private void SetupModularNotificationButtons()
+        {
+            // Kongin Tracker button
+            btnKonginTracker = new Button
+            {
+                Dock = DockStyle.Top,
+                FlatStyle = FlatStyle.Flat,
+                Font = btnNotifications.Font,
+                ForeColor = Color.FromArgb(0, 229, 255), // Cyan
+                Size = btnNotifications.Size,
+                Margin = btnNotifications.Margin,
+                Name = "btnKonginTracker",
+                Text = "🌡️ Kongin Temp/Hum",
+                TextAlign = ContentAlignment.MiddleLeft,
+                UseVisualStyleBackColor = true
+            };
+            btnKonginTracker.FlatAppearance.BorderSize = 0;
+            btnKonginTracker.Click += (s, e) => LoadUserControlSafely(() => new KonginTrackerUserControl(), btnKonginTracker);
+
+            // Inbound Stocks button
+            btnInboundStocks = new Button
+            {
+                Dock = DockStyle.Top,
+                FlatStyle = FlatStyle.Flat,
+                Font = btnNotifications.Font,
+                ForeColor = Color.FromArgb(46, 204, 113), // Emerald Green
+                Size = btnNotifications.Size,
+                Margin = btnNotifications.Margin,
+                Name = "btnInboundStocks",
+                Text = "📦 Inbound Stocks",
+                TextAlign = ContentAlignment.MiddleLeft,
+                UseVisualStyleBackColor = true
+            };
+            btnInboundStocks.FlatAppearance.BorderSize = 0;
+            btnInboundStocks.Click += (s, e) => LoadUserControlSafely(() => new InboundStocksUserControl(), btnInboundStocks);
+
+            // Color Expiration button
+            btnColorExpiry = new Button
+            {
+                Dock = DockStyle.Top,
+                FlatStyle = FlatStyle.Flat,
+                Font = btnNotifications.Font,
+                ForeColor = Color.FromArgb(230, 126, 34), // Orange
+                Size = btnNotifications.Size,
+                Margin = btnNotifications.Margin,
+                Name = "btnColorExpiry",
+                Text = "🎨 Color Expiration",
+                TextAlign = ContentAlignment.MiddleLeft,
+                UseVisualStyleBackColor = true
+            };
+            btnColorExpiry.FlatAppearance.BorderSize = 0;
+            btnColorExpiry.Click += (s, e) => LoadUserControlSafely(() => new ColorExpiryUserControl(), btnColorExpiry);
+
+            // Add to sidebar
+            pnlSidebar.Controls.Add(btnKonginTracker);
+            pnlSidebar.Controls.Add(btnInboundStocks);
+            pnlSidebar.Controls.Add(btnColorExpiry);
+
+            // Stack order under btnNotifications:
+            int notifIndex = pnlSidebar.Controls.GetChildIndex(btnNotifications);
+            pnlSidebar.Controls.SetChildIndex(btnKonginTracker, notifIndex);
+            pnlSidebar.Controls.SetChildIndex(btnInboundStocks, notifIndex);
+            pnlSidebar.Controls.SetChildIndex(btnColorExpiry, notifIndex);
         }
 
         private void btnNotifications_Click(object sender, EventArgs e)

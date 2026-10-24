@@ -241,6 +241,10 @@ namespace Server_HTML_Handler.Services
         public Dictionary<string, TimeSpan[]> SendSlots { get; } = new Dictionary<string, TimeSpan[]>(StringComparer.OrdinalIgnoreCase)
         {
             ["LOW_STOCK"] = new[] { new TimeSpan(7, 0, 0), new TimeSpan(13, 0, 0) },
+            ["MATERIAL_INBOUND"] = new[] { new TimeSpan(9, 30, 0), new TimeSpan(14, 30, 0) },
+            ["PIGMENT_INBOUND"] = new[] { new TimeSpan(9, 30, 0), new TimeSpan(14, 30, 0) },
+            ["CHEMICAL_INBOUND"] = new[] { new TimeSpan(9, 30, 0), new TimeSpan(14, 30, 0) },
+            ["COLOR_EXPIRY"] = new[] { new TimeSpan(10, 0, 0), new TimeSpan(15, 0, 0) },
         };
         public bool IsWatcherRunning { get; private set; } = false;
 
@@ -389,6 +393,9 @@ namespace Server_HTML_Handler.Services
                     await ScanColorExpiryAsync();
                 }
 
+                // Check Kongin environment readings
+                await KonginTrackerService.Instance.CheckLatestReadingAndAlertAsync();
+
                 await ProcessScheduleAsync();
             }
             catch (Exception ex)
@@ -458,6 +465,7 @@ namespace Server_HTML_Handler.Services
             await CheckLowStockLevelsAsync();
             await ScanLapsedPalletQualityAsync();
             await ScanColorExpiryAsync();
+            await KonginTrackerService.Instance.CheckLatestReadingAndAlertAsync();
             await ProcessScheduleAsync(); // still honours the send window and the once-per-cycle rule
         }
 
@@ -1073,7 +1081,8 @@ namespace Server_HTML_Handler.Services
         private const string TypeLowStock = "LOW_STOCK";
         private const string TypeLabQuality = "LAB_QUALITY_48H";
         private const string TypeColorExpiry = "COLOR_EXPIRY";
-        public const string TypeAll = "ALL";
+                public const string TypeAll = "ALL";
+        public const string TypeEnvironmentAlert = "ENVIRONMENT_ALERT";
 
         /// <summary>Notification types the watcher sends automatically (rows of tbl_NotificationCategory.NotifType).</summary>
         public static readonly string[] ScheduledTypes = { TypeMaterialInbound, TypePigmentInbound, TypeChemicalInbound, TypeLowStock, TypeLabQuality, TypeColorExpiry };
@@ -1089,6 +1098,7 @@ namespace Server_HTML_Handler.Services
                 case "low stock warning": return TypeLowStock;
                 case "lab quality 48hr lapse": return TypeLabQuality;
                 case "color expiration": return TypeColorExpiry;
+                                case "environment alert": return TypeEnvironmentAlert;
                 case "system test": return "SYSTEM_TEST";
                 default: return (category ?? "").Trim().ToUpperInvariant().Replace(' ', '_').Replace('-', '_');
             }
@@ -1264,6 +1274,7 @@ namespace Server_HTML_Handler.Services
             new NotificationCategoryInfo { NotifType = TypeLowStock, Label = "Low Stock Warning", Description = "Items at or below the stock threshold. Two digests per day (from 07:00 and from 13:00, only while 07:00-17:00) while unresolved." },
             new NotificationCategoryInfo { NotifType = TypeLabQuality, Label = "Lab Quality 48hr Lapse", Description = "Pallets with TS2 / TC90 / chemical results still missing after 48 hours. One digest per day while unresolved." },
             new NotificationCategoryInfo { NotifType = TypeColorExpiry, Label = "Color Expiration", Description = "Approved library colors valid from their EnteredDate for 6 months (dark) or 2 months (light, by Hex / color name). Listed from 14 days before expiry. One digest per day." },
+                        new NotificationCategoryInfo { NotifType = TypeEnvironmentAlert, Label = "Environment Alert (Kongin Temp/Humidity)", Description = "Alerts when QC lab temperature (< 21Â°C or > 25Â°C) or humidity (< 45% or > 65%) is outside standard range. Sent hourly while out-of-range.", DefaultPriority = "HIGH" },
             new NotificationCategoryInfo { NotifType = "SYSTEM_TEST", Label = "System Test (Send test button)", Description = "Only used by the Send Test button. Sent immediately.", DefaultPriority = "NORMAL" },
         };
 
@@ -1716,7 +1727,7 @@ namespace Server_HTML_Handler.Services
             }
         }
 
-        private void Log(string msg)
+        public void Log(string msg)
         {
             string line = $"[{DateTime.Now:HH:mm:ss}] {msg}";
             lock (_logLines)

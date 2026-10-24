@@ -30,9 +30,9 @@
     "semantic_hash": ""
   },
   "Helper/AppLoginStore.cs": {
-    "mtime": 1792746876.9926918,
-    "seen": 1792796430.7298036,
-    "ast_hash": "cde9fddccf7279aed8f90e416fcae8e1",
+    "mtime": 1792807312.6561646,
+    "seen": 1792817816.428991,
+    "ast_hash": "b49b0b4c9360d990f0348109fc326b63",
     "semantic_hash": ""
   },
   "Helper/Helper.cs": {
@@ -150,9 +150,9 @@
     "semantic_hash": ""
   },
   "Server HTML Handler.csproj": {
-    "mtime": 1792806040.729827,
-    "seen": 1792806084.3770642,
-    "ast_hash": "a93da9fa9e8a350e46b13244820fdaf6",
+    "mtime": 1792817725.4504025,
+    "seen": 1792817816.4290214,
+    "ast_hash": "4e99a12525a8470bd19bc92595d7cfb0",
     "semantic_hash": ""
   },
   "Server HTML Handler.sln": {
@@ -180,9 +180,9 @@
     "semantic_hash": ""
   },
   "Services/NotificationDispatcherService.cs": {
-    "mtime": 1792805617.9698994,
-    "seen": 1792806084.3770711,
-    "ast_hash": "ed3576e8ea0f7cadaad53b5fca1e0076",
+    "mtime": 1792817564.441602,
+    "seen": 1792817816.4290302,
+    "ast_hash": "d89c35adb50604d413a79351a6f495a9",
     "semantic_hash": ""
   },
   "Services/ShareControlService.cs": {
@@ -252,9 +252,9 @@
     "semantic_hash": ""
   },
   "View/Contents/NotificationHubUserControl.cs": {
-    "mtime": 1792744815.945566,
-    "seen": 1792796430.7298455,
-    "ast_hash": "89d9d16791550f9a8a48e0e0b9a4f664",
+    "mtime": 1792806628.924359,
+    "seen": 1792817816.4290526,
+    "ast_hash": "8d61fe0ad3dc1eb9cf977039956b27f8",
     "semantic_hash": ""
   },
   "View/Contents/ProjectViewUserControl.Designer.cs": {
@@ -330,9 +330,9 @@
     "semantic_hash": ""
   },
   "View/LoginForm.cs": {
-    "mtime": 1792746892.6801682,
-    "seen": 1792796430.7298605,
-    "ast_hash": "44573b9fb183eea91782da5c88ab0215",
+    "mtime": 1792807295.9223864,
+    "seen": 1792817816.4290717,
+    "ast_hash": "117a7eb042587850c1010fac48eca580",
     "semantic_hash": ""
   },
   "View/Panel/DashboardPanel.Designer.cs": {
@@ -342,9 +342,9 @@
     "semantic_hash": ""
   },
   "View/Panel/DashboardPanel.cs": {
-    "mtime": 1792746698.7606592,
-    "seen": 1792796430.7298632,
-    "ast_hash": "593ffdf55748e0f5c8c44bd4b982816a",
+    "mtime": 1792817778.5538802,
+    "seen": 1792817816.4290743,
+    "ast_hash": "def6a84d1a3899a780eac4bcce5443b0",
     "semantic_hash": ""
   },
   ".github/copilot-instructions.md": {
@@ -360,15 +360,39 @@
     "semantic_hash": ""
   },
   "_docs/ICM_CHANGELOG.md": {
-    "mtime": 1792796419.258212,
-    "seen": 1792796430.7298665,
-    "ast_hash": "55f323989915949ff2be815e6f34d184",
+    "mtime": 1792806118.901751,
+    "seen": 1792817816.4290788,
+    "ast_hash": "b9b64e96496308e5e784e0b2af725ba8",
     "semantic_hash": ""
   },
   "_docs/OBSIDIAN_CODEBASE_INDEX.md": {
-    "mtime": 1792796419.2322628,
-    "seen": 1792796430.7298675,
-    "ast_hash": "ac501a86e4462c4b0e6b7c4961a0e2d0",
+    "mtime": 1792806118.901751,
+    "seen": 1792817816.42908,
+    "ast_hash": "4d46babc6f3a3b0a73f41efe8e250482",
+    "semantic_hash": ""
+  },
+  "Services/KonginTrackerService.cs": {
+    "mtime": 1792817516.6686294,
+    "seen": 1792817816.4290285,
+    "ast_hash": "3e37e3c27269c6f244d6480e33d194f4",
+    "semantic_hash": ""
+  },
+  "View/Contents/ColorExpiryUserControl.cs": {
+    "mtime": 1792817737.5573208,
+    "seen": 1792817816.42904,
+    "ast_hash": "f062266b86bf90ca3fd00916870f1351",
+    "semantic_hash": ""
+  },
+  "View/Contents/InboundStocksUserControl.cs": {
+    "mtime": 1792817737.5556028,
+    "seen": 1792817816.4290485,
+    "ast_hash": "a43796da68b689f28426e3cdd4352583",
+    "semantic_hash": ""
+  },
+  "View/Contents/KonginTrackerUserControl.cs": {
+    "mtime": 1792817795.9787903,
+    "seen": 1792817816.42905,
+    "ast_hash": "1f13d4ba937d76283d1c87f8385abb19",
     "semantic_hash": ""
   }
 }
