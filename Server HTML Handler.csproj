@@ -32,7 +32,7 @@
     <UpdateUrl>\\192.168.32.43\Deployed\Web Hosting Handler\</UpdateUrl>
     <ProductName>Server Management System</ProductName>
     <PublisherName>Eigeman Go</PublisherName>
-    <ApplicationRevision>8</ApplicationRevision>
+    <ApplicationRevision>22</ApplicationRevision>
     <ApplicationVersion>1.0.0.%2a</ApplicationVersion>
     <UseApplicationTrust>false</UseApplicationTrust>
     <CreateDesktopShortcut>true</CreateDesktopShortcut>
@@ -82,6 +82,12 @@
     </Reference>
     <Reference Include="FastColoredTextBox, Version=2.16.24.0, Culture=neutral, PublicKeyToken=fb8aa12b994ef61b, processorArchitecture=MSIL">
       <HintPath>packages\FCTB.2.16.24\lib\FastColoredTextBox.dll</HintPath>
+    </Reference>
+    <Reference Include="Newtonsoft.Json, Version=13.0.0.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed, processorArchitecture=MSIL">
+      <HintPath>packages\Newtonsoft.Json.13.0.4\lib\net45\Newtonsoft.Json.dll</HintPath>
+    </Reference>
+    <Reference Include="Fleck, Version=1.2.0.0, Culture=neutral, processorArchitecture=MSIL">
+      <HintPath>packages\Fleck.1.2.0\lib\net45\Fleck.dll</HintPath>
     </Reference>
     <Reference Include="Google.Protobuf, Version=3.35.0.0, Culture=neutral, PublicKeyToken=a7d26565bac4d604, processorArchitecture=MSIL">
       <HintPath>packages\Google.Protobuf.3.35.0\lib\net45\Google.Protobuf.dll</HintPath>
@@ -171,6 +177,8 @@
     </Reference>
     <Reference Include="System.DirectoryServices" />
     <Reference Include="System.IO.Compression.FileSystem" />
+    <Reference Include="System.IO.Compression" />
+    <Reference Include="System.IO.Compression.FileSystem" />
     <Reference Include="System.IO.Compression.ZipFile, Version=4.0.2.0, Culture=neutral, PublicKeyToken=b77a5c561934e089, processorArchitecture=MSIL">
       <HintPath>packages\System.IO.Compression.ZipFile.4.3.0\lib\net46\System.IO.Compression.ZipFile.dll</HintPath>
       <Private>True</Private>
@@ -239,7 +247,9 @@
       <DependentUpon>Form1.cs</DependentUpon>
     </Compile>
     <Compile Include="Helper\AesEncryptionHelper.cs" />
-    <Compile Include="Helper\Helper.cs" />
+    <Compile Include="Helper\Helper.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
     <Compile Include="Helper\TestLabHelper.cs" />
     <Compile Include="Model\RouteInfo.cs" />
     <Compile Include="Nullable\AllowNullAttribute.cs" />
@@ -265,6 +275,10 @@
     <Compile Include="View\Contents\ConsoleUserControl.cs">
       <SubType>UserControl</SubType>
     </Compile>
+    <Compile Include="View\Contents\ConsoleUserControl.Deploy.cs">
+      <DependentUpon>ConsoleUserControl.cs</DependentUpon>
+      <SubType>UserControl</SubType>
+    </Compile>
     <Compile Include="View\Contents\ConsoleUserControl.Designer.cs">
       <DependentUpon>ConsoleUserControl.cs</DependentUpon>
     </Compile>
@@ -285,6 +299,39 @@
     </Compile>
     <Compile Include="View\Contents\ServerControlForm.Designer.cs">
       <DependentUpon>ServerControlForm.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Services\DeploymentStagingService.cs" />
+    <Compile Include="Services\CallSignalingService.cs" />
+    <Compile Include="Helper\AppLoginStore.cs" />
+    <Compile Include="Services\ApacheWatchdogService.cs" />
+    <Compile Include="Services\ShareControlService.cs" />
+    <Compile Include="View\Contents\ShareMonitorUserControl.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Include="Services\NotificationDispatcherService.cs" />
+    <Compile Include="View\Contents\NotificationHubUserControl.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Include="View\Contents\NotificationHubUserControl.Designer.cs">
+      <DependentUpon>NotificationHubUserControl.cs</DependentUpon>
+    </Compile>
+    <Compile Include="View\Dialogs\CreateCi4ProjectDialog.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="View\Dialogs\CreateCi4ProjectDialog.Designer.cs">
+      <DependentUpon>CreateCi4ProjectDialog.cs</DependentUpon>
+    </Compile>
+    <Compile Include="View\Dialogs\DatabaseCredentialsDialog.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="View\Dialogs\DatabaseCredentialsDialog.Designer.cs">
+      <DependentUpon>DatabaseCredentialsDialog.cs</DependentUpon>
+    </Compile>
+    <Compile Include="View\Contents\CallServerUserControl.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Include="View\Contents\CallServerUserControl.Designer.cs">
+      <DependentUpon>CallServerUserControl.cs</DependentUpon>
     </Compile>
     <Compile Include="View\Contents\ServerControlUserControl.cs">
       <SubType>UserControl</SubType>

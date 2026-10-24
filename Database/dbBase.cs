@@ -1,4 +1,4 @@
-﻿using MySql.Data.MySqlClient;
+using MySql.Data.MySqlClient;
 using Server_HTML_Handler.Helper;
 using Server_HTML_Handler.Models;
 using System;
@@ -17,7 +17,7 @@ namespace Server_HTML_Handler.Database
             var userList = new List<DbUserOverview>();
 
             // Replace with your active connection string / helper
-            string connStr = Helper.StorageMetricsHelper.GetConnectionString();
+            string connStr = StorageMetricsHelper.GetConnectionString();
 
             using (var conn = new MySqlConnection(connStr))
             {
@@ -56,12 +56,14 @@ namespace Server_HTML_Handler.Database
 
         public static bool DropDatabaseUser(string username, string host)
         {
-            string connStr = Helper.StorageMetricsHelper.GetConnectionString();
+            string connStr = StorageMetricsHelper.GetConnectionString();
             using (var conn = new MySqlConnection(connStr))
             {
                 conn.Open();
                 string userTarget = (username == "Any") ? "" : username;
-                string query = $"DROP USER '{userTarget}'@'{host}'; FLUSH PRIVILEGES;";
+                string safeUser = (userTarget ?? "").Replace("'", "''");
+                string safeHost = (host ?? "%").Replace("'", "''");
+                string query = $"DROP USER '{safeUser}'@'{safeHost}'; FLUSH PRIVILEGES;";
 
                 using (var cmd = new MySqlCommand(query, conn))
                 {
@@ -71,11 +73,43 @@ namespace Server_HTML_Handler.Database
             return true;
         }
 
+        public static bool ResetDatabaseUserPassword(string username, string host, string newPassword)
+        {
+            string connStr = StorageMetricsHelper.GetConnectionString();
+            using (var conn = new MySqlConnection(connStr))
+            {
+                conn.Open();
+                string userTarget = (username == "Any") ? "" : username;
+                string safeUser = (userTarget ?? "").Replace("'", "''");
+                string safeHost = (host ?? "%").Replace("'", "''");
+                string safePass = (newPassword ?? "").Replace("'", "''");
+
+                try
+                {
+                    string query = $"ALTER USER '{safeUser}'@'{safeHost}' IDENTIFIED BY '{safePass}'; FLUSH PRIVILEGES;";
+                    using (var cmd = new MySqlCommand(query, conn))
+                    {
+                        cmd.ExecuteNonQuery();
+                    }
+                }
+                catch
+                {
+                    // Fallback for older MariaDB/MySQL syntax
+                    string fallbackQuery = $"SET PASSWORD FOR '{safeUser}'@'{safeHost}' = PASSWORD('{safePass}'); FLUSH PRIVILEGES;";
+                    using (var cmd = new MySqlCommand(fallbackQuery, conn))
+                    {
+                        cmd.ExecuteNonQuery();
+                    }
+                }
+            }
+            return true;
+        }
+
         public static bool TestDatabaseConnection()
         {
             try
             {
-                string connStr = Helper.StorageMetricsHelper.GetConnectionString();
+                string connStr = StorageMetricsHelper.GetConnectionString();
                 using (var conn = new MySqlConnection(connStr))
                 {
                     conn.Open();
@@ -84,6 +118,37 @@ namespace Server_HTML_Handler.Database
             }
             catch
             {
+                return false;
+            }
+        }
+
+        public static bool TestCustomConnection(string host, uint port, string user, string password, out string serverVersion, out string errorMessage)
+        {
+            serverVersion = string.Empty;
+            errorMessage = string.Empty;
+            try
+            {
+                MySqlConnectionStringBuilder builder = new MySqlConnectionStringBuilder
+                {
+                    Server = host,
+                    Port = port,
+                    UserID = user,
+                    Password = password,
+                    Database = "mysql",
+                    SslMode = MySqlSslMode.Disabled,
+                    ConnectionTimeout = 4
+                };
+
+                using (var conn = new MySqlConnection(builder.ConnectionString))
+                {
+                    conn.Open();
+                    serverVersion = conn.ServerVersion;
+                    return conn.State == ConnectionState.Open;
+                }
+            }
+            catch (Exception ex)
+            {
+                errorMessage = ex.Message;
                 return false;
             }
         }

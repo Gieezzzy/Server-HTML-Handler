@@ -88,7 +88,7 @@ namespace Server_HTML_Handler.View.Contents
             {
                 try
                 {
-                    if (Process.GetProcessesByName("httpd").Length > 0)
+                    if (Helper.ServerBackupHelper.IsXamppApacheRunning())
                     {
                         isRunning = true;
                         serviceExists = true;

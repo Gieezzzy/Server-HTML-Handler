@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Drawing;
@@ -41,6 +41,35 @@ namespace Server_HTML_Handler.View.Contents
             else
             {
                 lblSelectedPath.Text = "Current Path: Not Set (Click 'Select Project Root')";
+            }
+        }
+
+        private void BtnNewCi4Project_Click(object sender, EventArgs e)
+        {
+            string hostingPath = Properties.Settings.Default.HTMLPath;
+            if (string.IsNullOrWhiteSpace(hostingPath) || !Directory.Exists(hostingPath))
+            {
+                hostingPath = @"D:\html";
+            }
+            string hostIp = Properties.Settings.Default.IP;
+            if (string.IsNullOrWhiteSpace(hostIp)) hostIp = "192.168.32.43";
+
+            using (var dlg = new Dialogs.CreateCi4ProjectDialog(hostingPath, hostIp))
+            {
+                if (dlg.ShowDialog(this) == DialogResult.OK || !string.IsNullOrEmpty(dlg.CreatedProjectPath))
+                {
+                    if (Directory.Exists(dlg.CreatedProjectPath))
+                    {
+                        Properties.Settings.Default.HTMLPath = dlg.CreatedProjectPath;
+                        Properties.Settings.Default.Save();
+                        lblSelectedPath.Text = $"Current Path: {dlg.CreatedProjectPath}";
+                        ScanProjectFiles(dlg.CreatedProjectPath);
+                    }
+                    else if (Directory.Exists(hostingPath))
+                    {
+                        ScanProjectFiles(hostingPath);
+                    }
+                }
             }
         }
 

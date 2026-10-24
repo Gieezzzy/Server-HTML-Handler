@@ -1,4 +1,4 @@
-﻿namespace Server_HTML_Handler.View.Contents
+namespace Server_HTML_Handler.View.Contents
 {
     partial class ProjectViewUserControl
     {
@@ -20,6 +20,7 @@
             this.topControlPanel = new System.Windows.Forms.Panel();
             this.btnOpenExplorer = new System.Windows.Forms.Button();
             this.btnRefreshFiles = new System.Windows.Forms.Button();
+            this.btnNewCi4Project = new System.Windows.Forms.Button();
             this.btnSelectFolder = new System.Windows.Forms.Button();
             this.lblSelectedPath = new System.Windows.Forms.Label();
             this.splitContainer = new System.Windows.Forms.SplitContainer();
@@ -55,6 +56,7 @@
             // topControlPanel
             // 
             this.topControlPanel.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(45)))), ((int)(((byte)(45)))), ((int)(((byte)(48)))));
+            this.topControlPanel.Controls.Add(this.btnNewCi4Project);
             this.topControlPanel.Controls.Add(this.btnOpenExplorer);
             this.topControlPanel.Controls.Add(this.btnRefreshFiles);
             this.topControlPanel.Controls.Add(this.btnSelectFolder);
@@ -119,7 +121,7 @@
             this.lblSelectedPath.AutoSize = true;
             this.lblSelectedPath.Font = new System.Drawing.Font("Segoe UI", 9F);
             this.lblSelectedPath.ForeColor = System.Drawing.Color.LightGray;
-            this.lblSelectedPath.Location = new System.Drawing.Point(405, 15);
+            this.lblSelectedPath.Location = new System.Drawing.Point(575, 15);
             this.lblSelectedPath.Name = "lblSelectedPath";
             this.lblSelectedPath.Size = new System.Drawing.Size(117, 15);
             this.lblSelectedPath.TabIndex = 3;
@@ -383,6 +385,7 @@
         #endregion
 
         private System.Windows.Forms.Panel topControlPanel;
+        private System.Windows.Forms.Button btnNewCi4Project;
         private System.Windows.Forms.Button btnSelectFolder;
         private System.Windows.Forms.Button btnRefreshFiles;
         private System.Windows.Forms.Button btnOpenExplorer;

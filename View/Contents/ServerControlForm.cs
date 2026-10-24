@@ -1,4 +1,4 @@
-﻿using Server_HTML_Handler.Controller;
+using Server_HTML_Handler.Controller;
 using Server_HTML_Handler.Helper;
 using Server_HTML_Handler.Models;
 using System;
@@ -10,12 +10,22 @@ using System.IO.Compression;
 using System.Linq;
 using System.Threading.Tasks;
 using System.Windows.Forms;
+using System.Text;
+
+
+using System.Security.AccessControl;
+using System.Security.Principal;
+using System.Text.RegularExpressions;
+
+
 using static Server_HTML_Handler.Helper.ServerBackupHelper;
 
 namespace Server_HTML_Handler.View.Contents
 {
     public partial class ServerControlForm : UserControl
     {
+        private CheckedListBox clbNetworkItems;
+        private DataGridView dgvAccessRights;
         public ServerControlForm()
         {
             InitializeComponent();
@@ -29,6 +39,154 @@ namespace Server_HTML_Handler.View.Contents
             // Wire immediate dropdown commit & error handling for DataGridViews
             dgvAclPermissions.CurrentCellDirtyStateChanged += DgvAclPermissions_CurrentCellDirtyStateChanged;
             dgvAclPermissions.DataError += DgvAclPermissions_DataError;
+        }
+
+        private void SetupAccessPanel()
+        {
+            // Create the DataGridView dynamically to fill your panelAccess
+            dgvAccessRights = new DataGridView();
+            dgvAccessRights.Dock = DockStyle.Fill;
+            dgvAccessRights.AllowUserToAddRows = false;
+            dgvAccessRights.AllowUserToDeleteRows = false;
+            dgvAccessRights.RowHeadersVisible = false;
+            dgvAccessRights.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill;
+            dgvAccessRights.BackgroundColor = Color.FromArgb(42, 42, 42);
+            dgvAccessRights.ForeColor = Color.Black; // Standard text color for rows
+            dgvAccessRights.SelectionMode = DataGridViewSelectionMode.FullRowSelect;
+
+            // 1. Add Checkbox Column
+            DataGridViewCheckBoxColumn chkCol = new DataGridViewCheckBoxColumn();
+            chkCol.Name = "Select";
+            chkCol.HeaderText = "Select";
+            chkCol.Width = 50;
+            dgvAccessRights.Columns.Add(chkCol);
+
+            // 2. Add Info Columns
+            dgvAccessRights.Columns.Add("Identity", "User / IP Address");
+            dgvAccessRights.Columns.Add("Type", "Platform / Type");
+            dgvAccessRights.Columns.Add("Permissions", "Permissions");
+
+            // 3. Add hidden column to store raw rule data (helps with deleting later)
+            dgvAccessRights.Columns.Add("RawObject", "RawObject");
+            dgvAccessRights.Columns["RawObject"].Visible = false;
+
+            // Add it to your designer panel
+            panelAccess.Controls.Add(dgvAccessRights);
+        }
+
+        private void LoadAccessRights()
+        {
+            if (dgvAccessRights == null) return;
+            dgvAccessRights.Rows.Clear();
+
+            string path = Properties.Settings.Default.HTMLPath;
+            if (string.IsNullOrEmpty(path) || !Directory.Exists(path)) return;
+
+            // --- 1. LOAD WINDOWS NTFS USERS ---
+            try
+            {
+                DirectoryInfo dInfo = new DirectoryInfo(path);
+                DirectorySecurity dSecurity = dInfo.GetAccessControl();
+                AuthorizationRuleCollection rules = dSecurity.GetAccessRules(true, true, typeof(System.Security.Principal.NTAccount));
+
+                foreach (FileSystemAccessRule rule in rules)
+                {
+                    string permissions = "Read-Only";
+                    if (rule.FileSystemRights.HasFlag(FileSystemRights.Write) ||
+                        rule.FileSystemRights.HasFlag(FileSystemRights.Modify) ||
+                        rule.FileSystemRights.HasFlag(FileSystemRights.FullControl))
+                    {
+                        permissions = rule.AccessControlType == AccessControlType.Deny ? "Write (DENIED)" : "Read/Write";
+                    }
+
+                    string identity = rule.IdentityReference.Value;
+                    string type = rule.IsInherited ? "Windows (Inherited)" : "Windows (Explicit)";
+
+                    dgvAccessRights.Rows.Add(false, identity, type, permissions, rule);
+                }
+            }
+            catch { /* Ignore if it fails to read OS permissions */ }
+
+            // --- 2. LOAD WEB IPs (.htaccess) ---
+            try
+            {
+                string htaccessPath = Path.Combine(path, ".htaccess");
+                if (File.Exists(htaccessPath))
+                {
+                    string content = File.ReadAllText(htaccessPath);
+                    Match blockMatch = Regex.Match(content, @"# --- IP WRITE BLOCK START ---([\s\S]*?)# --- IP WRITE BLOCK END ---");
+
+                    if (blockMatch.Success)
+                    {
+                        MatchCollection ipMatches = Regex.Matches(blockMatch.Value, @"Require ip ([\d\.]+)");
+                        foreach (Match m in ipMatches)
+                        {
+                            dgvAccessRights.Rows.Add(false, m.Groups[1].Value, "Web IP (.htaccess)", "Read/Write (POST/PUT)", m.Groups[1].Value);
+                        }
+                    }
+                }
+            }
+            catch { /* Ignore if no htaccess found */ }
+        }
+
+        private void SetupFolderFilesPanel()
+        {
+            // 1. Create the checkbox list and dock it fully inside your Panel
+            clbNetworkItems = new CheckedListBox();
+            clbNetworkItems.Dock = DockStyle.Fill;
+            clbNetworkItems.CheckOnClick = true;
+            clbNetworkItems.BackColor = Color.FromArgb(42, 42, 42); // Match your dark theme
+            clbNetworkItems.ForeColor = Color.White;
+            clbNetworkItems.BorderStyle = BorderStyle.None;
+            clbNetworkItems.Font = new Font("Segoe UI", 9F, FontStyle.Regular);
+
+            // 2. Add it to the panel you created in the designer
+            panelFolderFiles.Controls.Add(clbNetworkItems);
+        }
+
+        private void LoadNetworkFilesAndFolders()
+        {
+            if (clbNetworkItems == null) return;
+
+            clbNetworkItems.Items.Clear();
+            string rootPath = Properties.Settings.Default.HTMLPath;
+            txtNetPath.Text = rootPath;
+
+            if (string.IsNullOrEmpty(rootPath) || !Directory.Exists(rootPath)) return;
+
+            try
+            {
+                // 1. Load all Folders
+                foreach (string dirPath in Directory.GetDirectories(rootPath))
+                {
+                    DirectoryInfo dirInfo = new DirectoryInfo(dirPath);
+                    // Check if it's already hidden, if so, pre-check the box
+                    bool isHidden = (dirInfo.Attributes & FileAttributes.Hidden) == FileAttributes.Hidden;
+
+                    clbNetworkItems.Items.Add(new NetworkItem
+                    {
+                        Path = dirPath,
+                        DisplayName = "📁 " + dirInfo.Name
+                    }, isHidden);
+                }
+
+                // 2. Load all Files
+                foreach (string filePath in Directory.GetFiles(rootPath))
+                {
+                    FileInfo fileInfo = new FileInfo(filePath);
+                    bool isHidden = (fileInfo.Attributes & FileAttributes.Hidden) == FileAttributes.Hidden;
+
+                    clbNetworkItems.Items.Add(new NetworkItem
+                    {
+                        Path = filePath,
+                        DisplayName = "📄 " + fileInfo.Name
+                    }, isHidden);
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Failed to load files from HTMLPath: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
         }
 
         private async void ServerControlForm_Load(object sender, EventArgs e)
@@ -46,6 +204,10 @@ namespace Server_HTML_Handler.View.Contents
                 RefreshDatabaseUsers();
                 RefreshStorageDetails();
                 LoadAclPermissions();
+                SetupFolderFilesPanel();
+                LoadNetworkFilesAndFolders();
+                SetupAccessPanel();
+                LoadAccessRights();
                 await RefreshServerServicesStatusAsync();
             }
             catch (Exception ex)
@@ -153,11 +315,47 @@ namespace Server_HTML_Handler.View.Contents
                 }
                 else
                 {
-                    MessageBox.Show("Database connection failed. Please check MySQL server status.", "Connection Failed", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    DialogResult prompt = MessageBox.Show(
+                        "Database connection failed. Access may be denied or MySQL is unreachable.\n\nWould you like to review or update your MySQL connection credentials now?",
+                        "Connection Failed",
+                        MessageBoxButtons.YesNo,
+                        MessageBoxIcon.Warning);
+
+                    if (prompt == DialogResult.Yes)
+                    {
+                        using (var dlg = new View.Dialogs.DatabaseCredentialsDialog())
+                        {
+                            if (dlg.ShowDialog(this) == DialogResult.OK)
+                            {
+                                RefreshDatabaseUsers();
+                            }
+                        }
+                    }
                 }
             }
             catch (Exception ex)
             {
+                if (IsDatabaseAuthError(ex))
+                {
+                    DialogResult prompt = MessageBox.Show(
+                        $"Database authentication error:\n{ex.Message}\n\nWould you like to enter updated credentials now?",
+                        "Database Authentication Failed",
+                        MessageBoxButtons.YesNo,
+                        MessageBoxIcon.Warning);
+
+                    if (prompt == DialogResult.Yes)
+                    {
+                        using (var dlg = new View.Dialogs.DatabaseCredentialsDialog())
+                        {
+                            if (dlg.ShowDialog(this) == DialogResult.OK)
+                            {
+                                RefreshDatabaseUsers();
+                                return;
+                            }
+                        }
+                    }
+                }
+
                 MessageBox.Show($"Connection test error: {ex.Message}", "Database Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
@@ -515,7 +713,7 @@ namespace Server_HTML_Handler.View.Contents
 
         private async Task RefreshServerServicesStatusAsync()
         {
-            bool isApacheRunning = await Task.Run(() => Process.GetProcessesByName("httpd").Length > 0);
+            bool isApacheRunning = await Task.Run(() => Helper.ServerBackupHelper.IsXamppApacheRunning());
             bool isMysqlRunning = await Task.Run(() => Process.GetProcessesByName("mysqld").Length > 0);
 
             lblApacheStatus.Text = isApacheRunning ? "Apache: RUNNING" : "Apache: STOPPED";
@@ -896,6 +1094,26 @@ namespace Server_HTML_Handler.View.Contents
             dgvAclPermissions.DataSource = aclList;
         }
 
+                private bool IsDatabaseAuthError(Exception ex)
+        {
+            if (ex == null) return false;
+            string msg = ex.Message ?? string.Empty;
+            return msg.IndexOf("Access denied", StringComparison.OrdinalIgnoreCase) >= 0
+                || msg.IndexOf("Authentication", StringComparison.OrdinalIgnoreCase) >= 0
+                || msg.IndexOf("using password", StringComparison.OrdinalIgnoreCase) >= 0;
+        }
+
+        private void btnChangeAdminCredentials_Click(object sender, EventArgs e)
+        {
+            using (var dlg = new View.Dialogs.DatabaseCredentialsDialog())
+            {
+                if (dlg.ShowDialog(this) == DialogResult.OK)
+                {
+                    RefreshDatabaseUsers();
+                }
+            }
+        }
+
         public void RefreshDatabaseUsers()
         {
             try
@@ -911,6 +1129,27 @@ namespace Server_HTML_Handler.View.Contents
             }
             catch (Exception ex)
             {
+                if (IsDatabaseAuthError(ex))
+                {
+                    DialogResult prompt = MessageBox.Show(
+                        $"Database authentication failed:\n{ex.Message}\n\nWould you like to enter updated MySQL administrator credentials now?",
+                        "MySQL Authentication Failed",
+                        MessageBoxButtons.YesNo,
+                        MessageBoxIcon.Warning);
+
+                    if (prompt == DialogResult.Yes)
+                    {
+                        using (var dlg = new View.Dialogs.DatabaseCredentialsDialog("Please enter your new MySQL username and password to reconnect."))
+                        {
+                            if (dlg.ShowDialog(this) == DialogResult.OK)
+                            {
+                                RefreshDatabaseUsers();
+                                return;
+                            }
+                        }
+                    }
+                }
+
                 MessageBox.Show($"Failed to load database users: {ex.Message}", "Database Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
@@ -1001,6 +1240,164 @@ namespace Server_HTML_Handler.View.Contents
                                 SetLoadingState(false);
                             }
                         }
+                    }
+                }
+            }
+        }
+
+        private void btnResetUserPassword_Click(object sender, EventArgs e)
+        {
+            if (dgvDatabaseUsers.CurrentRow == null || dgvDatabaseUsers.CurrentRow.Index < 0)
+            {
+                MessageBox.Show("Please select a user from the 'List of Users' table first.", "No User Selected", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            var selectedUser = dgvDatabaseUsers.CurrentRow.DataBoundItem as DbUserOverview;
+            if (selectedUser == null)
+            {
+                MessageBox.Show("Unable to determine the selected user.", "Selection Error", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            PromptAndResetUserPassword(selectedUser.UserName, selectedUser.HostName);
+        }
+
+        private void PromptAndResetUserPassword(string username, string host)
+        {
+            using (Form prompt = new Form())
+            {
+                prompt.Width = 380;
+                prompt.Height = 190;
+                prompt.FormBorderStyle = FormBorderStyle.FixedDialog;
+                prompt.Text = "Reset User Password";
+                prompt.StartPosition = FormStartPosition.CenterParent;
+                prompt.MaximizeBox = false;
+                prompt.MinimizeBox = false;
+                prompt.BackColor = Color.FromArgb(40, 40, 40);
+                prompt.ForeColor = Color.White;
+
+                Label lblText = new Label()
+                {
+                    Left = 20,
+                    Top = 15,
+                    Width = 325,
+                    Text = $"Enter new password for '{username}'@'{host}':",
+                    ForeColor = Color.FromArgb(0, 229, 255),
+                    Font = new Font("Segoe UI", 9F, FontStyle.Bold)
+                };
+
+                TextBox txtBox = new TextBox()
+                {
+                    Left = 20,
+                    Top = 45,
+                    Width = 325,
+                    UseSystemPasswordChar = true,
+                    BackColor = Color.FromArgb(25, 25, 25),
+                    ForeColor = Color.White,
+                    BorderStyle = BorderStyle.FixedSingle,
+                    Font = new Font("Segoe UI", 9F)
+                };
+
+                CheckBox chkShow = new CheckBox()
+                {
+                    Left = 20,
+                    Top = 75,
+                    Width = 150,
+                    Text = "Show Password",
+                    ForeColor = Color.LightGray,
+                    Font = new Font("Segoe UI", 8.25F)
+                };
+                chkShow.CheckedChanged += (s, ev) => { txtBox.UseSystemPasswordChar = !chkShow.Checked; };
+
+                Button btnConfirm = new Button()
+                {
+                    Text = "Reset Password",
+                    Left = 195,
+                    Width = 150,
+                    Top = 105,
+                    DialogResult = DialogResult.OK,
+                    BackColor = Color.FromArgb(230, 126, 34),
+                    ForeColor = Color.White,
+                    FlatStyle = FlatStyle.Flat,
+                    Cursor = Cursors.Hand,
+                    Font = new Font("Segoe UI Semibold", 9F, FontStyle.Bold)
+                };
+                btnConfirm.FlatAppearance.BorderSize = 0;
+
+                Button btnCancel = new Button()
+                {
+                    Text = "Cancel",
+                    Left = 110,
+                    Width = 75,
+                    Top = 105,
+                    DialogResult = DialogResult.Cancel,
+                    BackColor = Color.FromArgb(60, 60, 60),
+                    ForeColor = Color.LightGray,
+                    FlatStyle = FlatStyle.Flat
+                };
+                btnCancel.FlatAppearance.BorderSize = 0;
+
+                prompt.Controls.Add(lblText);
+                prompt.Controls.Add(txtBox);
+                prompt.Controls.Add(chkShow);
+                prompt.Controls.Add(btnConfirm);
+                prompt.Controls.Add(btnCancel);
+                prompt.AcceptButton = btnConfirm;
+                prompt.CancelButton = btnCancel;
+
+                if (prompt.ShowDialog(this) == DialogResult.OK)
+                {
+                    string newPass = txtBox.Text;
+                    try
+                    {
+                        Database.dbBase.ResetDatabaseUserPassword(username, host, newPass);
+                        string currentAdmin = Properties.Settings.Default.MasterUser;
+                        if (string.Equals(username, currentAdmin, StringComparison.OrdinalIgnoreCase))
+                        {
+                            DialogResult syncResult = MessageBox.Show(
+                                $"Password for '{username}'@'{host}' has been successfully reset in MySQL!\n\nThis account matches the application's active administrative connection user ('{currentAdmin}').\n\nWould you like to automatically update the application's saved connection credentials with this new password?",
+                                "Sync Admin Credentials",
+                                MessageBoxButtons.YesNo,
+                                MessageBoxIcon.Question);
+
+                            if (syncResult == DialogResult.Yes)
+                            {
+                                Properties.Settings.Default.DBmaster = AesEncryptionHelper.Encrypt(newPass);
+                                Properties.Settings.Default.Save();
+                            }
+                        }
+                        else
+                        {
+                            MessageBox.Show($"Password for '{username}'@'{host}' has been successfully reset!", "Password Reset", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                        }
+
+                        RefreshDatabaseUsers();
+                    }
+                    catch (Exception ex)
+                    {
+                        if (IsDatabaseAuthError(ex))
+                        {
+                            DialogResult authPrompt = MessageBox.Show(
+                                $"Authentication error resetting password:\n{ex.Message}\n\nWould you like to enter updated MySQL connection credentials now?",
+                                "Database Authentication Failed",
+                                MessageBoxButtons.YesNo,
+                                MessageBoxIcon.Warning);
+
+                            if (authPrompt == DialogResult.Yes)
+                            {
+                                using (var dlg = new View.Dialogs.DatabaseCredentialsDialog())
+                                {
+                                    if (dlg.ShowDialog(this) == DialogResult.OK)
+                                    {
+                                        RefreshDatabaseUsers();
+                                        return;
+                                    }
+                                }
+                            }
+                        }
+
+                        MessageBox.Show($"Failed to reset password: {ex.Message}", "Database Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
                     }
                 }
             }
@@ -1122,5 +1519,623 @@ namespace Server_HTML_Handler.View.Contents
         }
 
         #endregion
+
+
+        // =========================================================================
+        // NETWORK SECURITY & ACCESS METHODS
+        // =========================================================================
+
+        // 1. Set Windows Directory / Network Share to "Everyone = Read Only"
+
+        private bool IsAdministrator()
+        {
+            System.Security.Principal.WindowsIdentity identity = System.Security.Principal.WindowsIdentity.GetCurrent();
+            System.Security.Principal.WindowsPrincipal principal = new System.Security.Principal.WindowsPrincipal(identity);
+            return principal.IsInRole(System.Security.Principal.WindowsBuiltInRole.Administrator);
+        }
+
+        private void btnApplyReadOnly_Click(object sender, EventArgs e)
+        {
+            // --- 1. UAC ELEVATION CHECK ---
+            if (!IsAdministrator())
+            {
+                DialogResult result = MessageBox.Show(
+                    "Modifying folder permissions requires Administrative privileges.\n\nWould you like to restart the application as Administrator now?",
+                    "Elevation Required", MessageBoxButtons.YesNo, MessageBoxIcon.Warning);
+
+                if (result == DialogResult.Yes)
+                {
+                    ProcessStartInfo proc = new ProcessStartInfo();
+                    proc.UseShellExecute = true;
+                    proc.WorkingDirectory = Environment.CurrentDirectory;
+                    proc.FileName = Application.ExecutablePath;
+                    proc.Verb = "runas";
+
+                    try
+                    {
+                        Process.Start(proc);
+                        Application.Exit();
+                    }
+                    catch
+                    {
+                        MessageBox.Show("Administrative elevation was canceled.", "Canceled", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    }
+                }
+                return;
+            }
+
+            // --- 2. START PERMISSION LOGIC ---
+            string rootPath = Properties.Settings.Default.HTMLPath;
+
+            if (string.IsNullOrEmpty(rootPath) || !Directory.Exists(rootPath))
+            {
+                MessageBox.Show("The HTML Path is not set or does not exist.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            try
+            {
+                // Setup Identities
+                SecurityIdentifier everyone = new SecurityIdentifier(WellKnownSidType.WorldSid, null);
+                SecurityIdentifier systemSid = new SecurityIdentifier(WellKnownSidType.LocalSystemSid, null);
+                SecurityIdentifier adminSid = new SecurityIdentifier(WellKnownSidType.BuiltinAdministratorsSid, null);
+                string currentUser = System.Security.Principal.WindowsIdentity.GetCurrent().Name;
+
+                List<string> targetFolders = new List<string>();
+
+                if (clbNetworkItems != null && clbNetworkItems.Items.Count > 0)
+                {
+                    for (int i = 0; i < clbNetworkItems.Items.Count; i++)
+                    {
+                        if (clbNetworkItems.GetItemChecked(i))
+                        {
+                            NetworkItem item = (NetworkItem)clbNetworkItems.Items[i];
+                            if (Directory.Exists(item.Path)) targetFolders.Add(item.Path);
+                        }
+                    }
+                }
+
+                if (targetFolders.Count == 0) targetFolders.Add(rootPath);
+
+                int processedCount = 0;
+
+                // --- 3. PROCESS EACH TARGET ---
+                foreach (string targetPath in targetFolders)
+                {
+                    // A. Configure CI4 Uploads Folder First
+                    string ci4WritablePath = Path.Combine(targetPath, "writable");
+                    string ci4UploadsPath = Path.Combine(ci4WritablePath, "uploads");
+
+                    if (!Directory.Exists(ci4WritablePath)) Directory.CreateDirectory(ci4WritablePath);
+                    if (!Directory.Exists(ci4UploadsPath)) Directory.CreateDirectory(ci4UploadsPath);
+
+                    DirectoryInfo uploadInfo = new DirectoryInfo(ci4UploadsPath);
+                    DirectorySecurity uploadSecurity = uploadInfo.GetAccessControl();
+
+                    foreach (FileSystemAccessRule rule in uploadSecurity.GetAccessRules(true, false, typeof(SecurityIdentifier)))
+                    {
+                        if (rule.AccessControlType == AccessControlType.Deny) uploadSecurity.RemoveAccessRule(rule);
+                    }
+
+                    uploadSecurity.AddAccessRule(new FileSystemAccessRule(everyone, FileSystemRights.Modify | FileSystemRights.Write, InheritanceFlags.ContainerInherit | InheritanceFlags.ObjectInherit, PropagationFlags.None, AccessControlType.Allow));
+                    uploadInfo.SetAccessControl(uploadSecurity);
+
+                    // B. Configure Target Folder (NO DENY RULES, EXPLICIT ALLOW ONLY)
+                    DirectoryInfo targetInfo = new DirectoryInfo(targetPath);
+                    DirectorySecurity targetSecurity = targetInfo.GetAccessControl();
+
+                    foreach (FileSystemAccessRule rule in targetSecurity.GetAccessRules(true, false, typeof(SecurityIdentifier)))
+                    {
+                        if (rule.AccessControlType == AccessControlType.Deny) targetSecurity.RemoveAccessRule(rule);
+                    }
+
+                    // Grant FULL CONTROL to Your PC User, SYSTEM (Apache), and Administrators
+                    targetSecurity.AddAccessRule(new FileSystemAccessRule(currentUser, FileSystemRights.FullControl, InheritanceFlags.ContainerInherit | InheritanceFlags.ObjectInherit, PropagationFlags.None, AccessControlType.Allow));
+                    targetSecurity.AddAccessRule(new FileSystemAccessRule(systemSid, FileSystemRights.FullControl, InheritanceFlags.ContainerInherit | InheritanceFlags.ObjectInherit, PropagationFlags.None, AccessControlType.Allow));
+                    targetSecurity.AddAccessRule(new FileSystemAccessRule(adminSid, FileSystemRights.FullControl, InheritanceFlags.ContainerInherit | InheritanceFlags.ObjectInherit, PropagationFlags.None, AccessControlType.Allow));
+
+                    // Grant EVERYONE Read & Execute so normal network PCs and web visitors can view files
+                    targetSecurity.AddAccessRule(new FileSystemAccessRule(everyone, FileSystemRights.ReadAndExecute, InheritanceFlags.ContainerInherit | InheritanceFlags.ObjectInherit, PropagationFlags.None, AccessControlType.Allow));
+
+                    targetInfo.SetAccessControl(targetSecurity);
+                    processedCount++;
+                }
+
+                // --- 4. APPLY NETWORK SHARE (SMB) WITH EXACT FOLDER NAME ---
+                DirectoryInfo rootInfo = new DirectoryInfo(rootPath);
+                string shareName = rootInfo.Name; // This forces the share to be named exactly "html"
+
+                // Delete the old _WebShare (ignore error if it doesn't exist), then create the new share.
+                // /grant:Everyone,FULL removes the network bottleneck so developers can paste files (NTFS will still protect it).
+                string netCommand = $"/c net share {shareName}_WebShare /delete 2>nul & net share {shareName}=\"{rootPath}\" /grant:Everyone,FULL";
+
+                using (Process process = new Process())
+                {
+                    process.StartInfo.FileName = "cmd.exe";
+                    process.StartInfo.Arguments = netCommand;
+                    process.StartInfo.CreateNoWindow = true;
+                    process.StartInfo.UseShellExecute = false;
+                    process.Start();
+                    process.WaitForExit();
+                }
+
+                string targetMsg = (targetFolders.Count == 1 && targetFolders[0] == rootPath)
+                    ? "The Entire Root Directory"
+                    : $"{processedCount} Selected Folders";
+
+                MessageBox.Show($"Permissions Applied Successfully!\n\n" +
+                                $"- Network Share is now exactly '{shareName}'.\n" +
+                                $"- Your PC: FULL ACCESS Restored.\n" +
+                                $"- Other PCs: READ-ONLY (Use the HTML Access Tab to add Developers).\n" +
+                                $"- 'writable/uploads' ensured and set to Writable.",
+                                "Security Applied", MessageBoxButtons.OK, MessageBoxIcon.Information);
+
+                LoadAccessRights();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Failed to apply NTFS permissions: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        private void btnApplyIP_Click(object sender, EventArgs e)
+        {
+            string rootPath = Properties.Settings.Default.HTMLPath;
+            string ipAddr = txtWriteIP.Text.Trim();
+
+            if (string.IsNullOrEmpty(rootPath) || !Directory.Exists(rootPath) || string.IsNullOrEmpty(ipAddr))
+            {
+                MessageBox.Show("Please provide a valid path and IP Address.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            try
+            {
+                List<string> targetFolders = new List<string>();
+
+                // 1. Check if specific folders are selected in the UI Panel
+                if (clbNetworkItems != null && clbNetworkItems.Items.Count > 0)
+                {
+                    for (int i = 0; i < clbNetworkItems.Items.Count; i++)
+                    {
+                        if (clbNetworkItems.GetItemChecked(i))
+                        {
+                            NetworkItem item = (NetworkItem)clbNetworkItems.Items[i];
+                            if (Directory.Exists(item.Path)) targetFolders.Add(item.Path);
+                        }
+                    }
+                }
+
+                // 2. Target root if nothing is selected
+                if (targetFolders.Count == 0) targetFolders.Add(rootPath);
+
+                int processedCount = 0;
+
+                // 3. Apply the .htaccess IP rule to EACH targeted folder
+                foreach (string targetPath in targetFolders)
+                {
+                    string htaccessPath = Path.Combine(targetPath, ".htaccess");
+                    string content = File.Exists(htaccessPath) ? File.ReadAllText(htaccessPath) : "";
+
+                    // Extract existing IPs from our custom block
+                    List<string> allowedIPs = new List<string>();
+                    Match blockMatch = Regex.Match(content, @"# --- IP WRITE BLOCK START ---([\s\S]*?)# --- IP WRITE BLOCK END ---");
+
+                    if (blockMatch.Success)
+                    {
+                        MatchCollection ipMatches = Regex.Matches(blockMatch.Value, @"Require ip ([\d\.]+)");
+                        foreach (Match m in ipMatches) allowedIPs.Add(m.Groups[1].Value);
+
+                        // Remove the old block
+                        content = content.Replace(blockMatch.Value, "").Trim();
+                    }
+
+                    // Add the new IP if it isn't already in the list
+                    if (!allowedIPs.Contains(ipAddr))
+                    {
+                        allowedIPs.Add(ipAddr);
+                    }
+
+                    // Rebuild the Apache Rules Block
+                    StringBuilder newBlock = new StringBuilder();
+                    newBlock.AppendLine("\n# --- IP WRITE BLOCK START ---");
+                    newBlock.AppendLine("<Limit POST PUT DELETE>");
+                    foreach (string ip in allowedIPs)
+                    {
+                        newBlock.AppendLine($"    Require ip {ip}");
+                    }
+                    newBlock.AppendLine("</Limit>");
+                    newBlock.AppendLine("<Limit GET OPTIONS>");
+                    newBlock.AppendLine("    Require all granted"); // Everyone else can still READ
+                    newBlock.AppendLine("</Limit>");
+                    newBlock.AppendLine("# --- IP WRITE BLOCK END ---");
+
+                    // Ensure a clean merge with existing content
+                    string finalContent = content.Length > 0 ? content + "\n\n" + newBlock.ToString().Trim() : newBlock.ToString().Trim();
+
+                    File.WriteAllText(htaccessPath, finalContent);
+                    processedCount++;
+                }
+
+                string targetMsg = (targetFolders.Count == 1 && targetFolders[0] == rootPath)
+                    ? "The Entire Root Directory"
+                    : $"{processedCount} Selected Folders";
+
+                MessageBox.Show($"Web access updated.\n\nIP '{ipAddr}' was ADDED to the Write permission list for:\n- {targetMsg}", "Success", MessageBoxButtons.OK, MessageBoxIcon.Information);
+
+                // Refresh the table!
+                LoadAccessRights();
+                txtWriteIP.Clear();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Failed to apply IP: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+        // 3. Hide specific file or folder in Windows File Explorer
+        private void btnHide_Click(object sender, EventArgs e)
+        {
+            if (clbNetworkItems == null || clbNetworkItems.Items.Count == 0) return;
+
+            int changedCount = 0;
+
+            try
+            {
+                // Loop through every item in the CheckBox list in the panel
+                for (int i = 0; i < clbNetworkItems.Items.Count; i++)
+                {
+                    NetworkItem item = (NetworkItem)clbNetworkItems.Items[i];
+
+                    // If checked = Should be Hidden. If unchecked = Should be Visible.
+                    bool shouldBeHidden = clbNetworkItems.GetItemChecked(i);
+
+                    FileAttributes attributes = File.GetAttributes(item.Path);
+                    bool isCurrentlyHidden = (attributes & FileAttributes.Hidden) == FileAttributes.Hidden;
+
+                    // Apply "Super Hidden" status if checked (Hidden + System)
+                    if (shouldBeHidden && !isCurrentlyHidden)
+                    {
+                        File.SetAttributes(item.Path, attributes | FileAttributes.Hidden | FileAttributes.System);
+                        changedCount++;
+                    }
+                    // Remove "Super Hidden" status if unchecked
+                    else if (!shouldBeHidden && isCurrentlyHidden)
+                    {
+                        File.SetAttributes(item.Path, attributes & ~FileAttributes.Hidden & ~FileAttributes.System);
+                        changedCount++;
+                    }
+                }
+
+                MessageBox.Show($"Visibility updated successfully. {changedCount} items changed.", "Success", MessageBoxButtons.OK, MessageBoxIcon.Information);
+
+                // Refresh the list to ensure the UI matches the actual Windows files
+                LoadNetworkFilesAndFolders();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Failed to update folder visibility: {ex.Message}\n\nNote: You may need to run this app as Administrator to modify System attributes.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        private void btnRemoveAccess_Click(object sender, EventArgs e)
+        {
+            string path = Properties.Settings.Default.HTMLPath;
+            if (string.IsNullOrEmpty(path) || !Directory.Exists(path)) return;
+
+            bool hasChanges = false;
+            bool rewriteHtaccess = false;
+            bool ntfsModified = false;
+
+            List<string> remainingIPs = new List<string>();
+
+            DirectoryInfo dInfo = new DirectoryInfo(path);
+            DirectorySecurity dSecurity = dInfo.GetAccessControl();
+
+            try
+            {
+                // 1. Loop through the rows to see what is checked
+                foreach (DataGridViewRow row in dgvAccessRights.Rows)
+                {
+                    bool isChecked = Convert.ToBoolean(row.Cells["Select"].Value);
+                    string type = row.Cells["Type"].Value.ToString();
+                    string identity = row.Cells["Identity"].Value.ToString();
+
+                    // Handle Web IPs (.htaccess)
+                    if (type.Contains("Web IP"))
+                    {
+                        if (!isChecked)
+                            remainingIPs.Add(identity); // Keep this IP
+                        else
+                            rewriteHtaccess = true; // Delete this IP (by omitting it)
+                    }
+                    // Handle Windows Users
+                    else if (type.Contains("Windows") && isChecked)
+                    {
+                        if (type.Contains("Inherited"))
+                        {
+                            MessageBox.Show($"Cannot remove '{identity}'. Inherited Windows permissions must be removed from the Parent folder (C:\\xampp), not this folder.", "Warning", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                        }
+                        else
+                        {
+                            FileSystemAccessRule rule = (FileSystemAccessRule)row.Cells["RawObject"].Value;
+                            dSecurity.RemoveAccessRule(rule);
+                            ntfsModified = true;
+                        }
+                    }
+                }
+
+                // 2. Apply Windows NTFS Deletions
+                if (ntfsModified)
+                {
+                    dInfo.SetAccessControl(dSecurity);
+                    hasChanges = true;
+                }
+
+                // 3. Apply .htaccess IP Deletions
+                if (rewriteHtaccess)
+                {
+                    string htaccessPath = Path.Combine(path, ".htaccess");
+                    if (File.Exists(htaccessPath))
+                    {
+                        string content = File.ReadAllText(htaccessPath);
+                        Match blockMatch = Regex.Match(content, @"# --- IP WRITE BLOCK START ---([\s\S]*?)# --- IP WRITE BLOCK END ---");
+
+                        if (blockMatch.Success)
+                        {
+                            content = content.Replace(blockMatch.Value, "").Trim();
+
+                            // If we still have IPs remaining, rewrite the block
+                            if (remainingIPs.Count > 0)
+                            {
+                                StringBuilder newBlock = new StringBuilder();
+                                newBlock.AppendLine("\n# --- IP WRITE BLOCK START ---");
+                                newBlock.AppendLine("<Limit POST PUT DELETE>");
+                                foreach (string ip in remainingIPs) newBlock.AppendLine($"    Require ip {ip}");
+                                newBlock.AppendLine("</Limit>");
+                                newBlock.AppendLine("<Limit GET OPTIONS>");
+                                newBlock.AppendLine("    Require all granted");
+                                newBlock.AppendLine("</Limit>");
+                                newBlock.AppendLine("# --- IP WRITE BLOCK END ---");
+
+                                content = (content + newBlock.ToString()).Trim();
+                            }
+
+                            File.WriteAllText(htaccessPath, content);
+                            hasChanges = true;
+                        }
+                    }
+                }
+
+                if (hasChanges)
+                {
+                    MessageBox.Show("Selected access rules have been successfully removed.", "Success", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    LoadAccessRights(); // Refresh UI
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Failed to remove access rules: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        private void btnResetPermissions_Click(object sender, EventArgs e)
+        {
+            string rootPath = Properties.Settings.Default.HTMLPath;
+
+            if (string.IsNullOrEmpty(rootPath) || !Directory.Exists(rootPath))
+            {
+                MessageBox.Show("The HTML Path is not set or does not exist.", "Error", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            try
+            {
+                DirectoryInfo dInfo = new DirectoryInfo(rootPath);
+                DirectorySecurity dSecurity = dInfo.GetAccessControl();
+
+                // 1. Find and Remove ALL "Deny" rules that are locking you out
+                AuthorizationRuleCollection rules = dSecurity.GetAccessRules(true, false, typeof(System.Security.Principal.SecurityIdentifier));
+
+                bool removedDeny = false;
+                foreach (FileSystemAccessRule rule in rules)
+                {
+                    if (rule.AccessControlType == AccessControlType.Deny)
+                    {
+                        dSecurity.RemoveAccessRule(rule);
+                        removedDeny = true;
+                    }
+                }
+
+                // 2. Explicitly Grant Full Control to YOUR Windows Account
+                string currentUser = System.Security.Principal.WindowsIdentity.GetCurrent().Name;
+                dSecurity.AddAccessRule(new FileSystemAccessRule(
+                    currentUser,
+                    FileSystemRights.FullControl,
+                    InheritanceFlags.ContainerInherit | InheritanceFlags.ObjectInherit,
+                    PropagationFlags.None,
+                    AccessControlType.Allow));
+
+                // 3. Apply the fixed security back to the folder
+                dInfo.SetAccessControl(dSecurity);
+
+                string msg = removedDeny
+                    ? $"Lockout Removed! The 'Deny' rule was stripped.\n\nUser '{currentUser}' has been granted Full Control."
+                    : $"User '{currentUser}' has been granted Full Control.";
+
+                MessageBox.Show(msg, "Emergency Reset Successful", MessageBoxButtons.OK, MessageBoxIcon.Information);
+
+                // Refresh the table to show your restored access
+                LoadAccessRights();
+            }
+            catch (UnauthorizedAccessException)
+            {
+                // Fallback: If Windows completely blocks the C# app from modifying the folder
+                MessageBox.Show("Critical Lockout: Windows blocked this app from resetting the permissions.\n\n" +
+                                "To fix this manually:\n" +
+                                "1. Open Windows File Explorer and go to C:\\xampp.\n" +
+                                "2. Right-click your 'htdocs' folder -> Properties.\n" +
+                                "3. Go to the 'Security' tab -> click 'Advanced'.\n" +
+                                "4. Find the 'Everyone' entry that says 'Deny' under the Type column.\n" +
+                                "5. Click it and select 'Remove', then click Apply.",
+                                "Manual Unlock Required", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Failed to reset folder permissions: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        private void btnReset_Click(object sender, EventArgs e)
+        {
+            // --- 1. UAC ELEVATION CHECK ---
+            if (!IsAdministrator())
+            {
+                DialogResult result = MessageBox.Show(
+                    "Resetting folder permissions requires Administrative privileges.\n\nWould you like to restart the application as Administrator now?",
+                    "Elevation Required", MessageBoxButtons.YesNo, MessageBoxIcon.Warning);
+
+                if (result == DialogResult.Yes)
+                {
+                    ProcessStartInfo proc = new ProcessStartInfo();
+                    proc.UseShellExecute = true;
+                    proc.WorkingDirectory = Environment.CurrentDirectory;
+                    proc.FileName = Application.ExecutablePath;
+                    proc.Verb = "runas";
+                    try { Process.Start(proc); Application.Exit(); } catch { }
+                }
+                return;
+            }
+
+            // --- 2. CONFIRMATION ---
+            DialogResult confirm = MessageBox.Show(
+                "This will completely reset the security state.\n\nIt will:\n1. Delete the Network Share.\n2. Remove Web IP Restrictions (.htaccess).\n3. Restore default Windows Folder Permissions.\n\n(No physical files/images will be deleted).\n\nProceed?",
+                "Confirm Factory Reset", MessageBoxButtons.YesNo, MessageBoxIcon.Warning);
+
+            if (confirm != DialogResult.Yes) return;
+
+            string rootPath = Properties.Settings.Default.HTMLPath;
+            if (string.IsNullOrEmpty(rootPath) || !Directory.Exists(rootPath)) return;
+
+            try
+            {
+                List<string> targetFolders = new List<string>();
+
+                // Check if specific folders are selected
+                if (clbNetworkItems != null && clbNetworkItems.Items.Count > 0)
+                {
+                    for (int i = 0; i < clbNetworkItems.Items.Count; i++)
+                    {
+                        if (clbNetworkItems.GetItemChecked(i))
+                        {
+                            NetworkItem item = (NetworkItem)clbNetworkItems.Items[i];
+                            if (Directory.Exists(item.Path)) targetFolders.Add(item.Path);
+                        }
+                    }
+                }
+
+                // Target root if nothing is selected
+                if (targetFolders.Count == 0) targetFolders.Add(rootPath);
+
+                // Identities we previously added that need to be wiped
+                SecurityIdentifier everyone = new SecurityIdentifier(WellKnownSidType.WorldSid, null);
+                SecurityIdentifier systemSid = new SecurityIdentifier(WellKnownSidType.LocalSystemSid, null);
+                SecurityIdentifier adminSid = new SecurityIdentifier(WellKnownSidType.BuiltinAdministratorsSid, null);
+                string currentUser = System.Security.Principal.WindowsIdentity.GetCurrent().Name;
+
+                // --- 3. EXECUTE RESET ON TARGETS ---
+                foreach (string targetPath in targetFolders)
+                {
+                    // A. Wipe .htaccess IP Rules
+                    string htaccessPath = Path.Combine(targetPath, ".htaccess");
+                    if (File.Exists(htaccessPath))
+                    {
+                        string content = File.ReadAllText(htaccessPath);
+                        Match blockMatch = System.Text.RegularExpressions.Regex.Match(content, @"# --- IP WRITE BLOCK START ---([\s\S]*?)# --- IP WRITE BLOCK END ---");
+                        if (blockMatch.Success)
+                        {
+                            content = content.Replace(blockMatch.Value, "").Trim();
+                            File.WriteAllText(htaccessPath, content);
+                        }
+                    }
+
+                    // B. Wipe explicit NTFS rules from the target folder
+                    WipeFolderPermissions(targetPath, everyone, systemSid, adminSid, currentUser);
+
+                    // C. Wipe explicit NTFS rules from sub-folders
+                    string ci4UploadsPath = Path.Combine(targetPath, "writable", "uploads");
+                    if (Directory.Exists(ci4UploadsPath)) WipeFolderPermissions(ci4UploadsPath, everyone, systemSid, adminSid, currentUser);
+
+                    string rmsImageDir = Path.Combine(targetPath, "ImageMessageDirectory");
+                    if (Directory.Exists(rmsImageDir)) WipeFolderPermissions(rmsImageDir, everyone, systemSid, adminSid, currentUser);
+                }
+
+                // --- 4. DELETE ALL NETWORK SHARES ---
+                DirectoryInfo rootInfo = new DirectoryInfo(rootPath);
+                string shareName = rootInfo.Name;
+                // This silently attempts to delete both the clean name and the old ghost share just in case
+                string netCommand = $"/c net share {shareName} /delete 2>nul & net share {shareName}_WebShare /delete 2>nul";
+
+                using (Process process = new Process())
+                {
+                    process.StartInfo.FileName = "cmd.exe";
+                    process.StartInfo.Arguments = netCommand;
+                    process.StartInfo.CreateNoWindow = true;
+                    process.StartInfo.UseShellExecute = false;
+                    process.Start();
+                    process.WaitForExit();
+                }
+
+                MessageBox.Show("Reset Complete!\n\nAll custom permissions, IP restrictions, and network shares applied by this tool have been removed. The folders are back to their default Windows state.", "Reset Successful", MessageBoxButtons.OK, MessageBoxIcon.Information);
+
+                // Refresh the table to reflect the wiped data
+                LoadAccessRights();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"An error occurred during reset: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        // --- HELPER METHOD TO STRIP EXPLICIT RULES ---
+        private void WipeFolderPermissions(string path, SecurityIdentifier everyone, SecurityIdentifier systemSid, SecurityIdentifier adminSid, string currentUser)
+        {
+            try
+            {
+                DirectoryInfo dInfo = new DirectoryInfo(path);
+                DirectorySecurity security = dInfo.GetAccessControl();
+
+                // Get all EXPLICIT rules (false means ignore inherited parent rules)
+                AuthorizationRuleCollection rules = security.GetAccessRules(true, false, typeof(SecurityIdentifier));
+
+                foreach (FileSystemAccessRule rule in rules)
+                {
+                    // If the rule belongs to one of the groups we manually altered, delete it
+                    if (rule.IdentityReference.Value == everyone.Value ||
+                        rule.IdentityReference.Value == systemSid.Value ||
+                        rule.IdentityReference.Value == adminSid.Value ||
+                        rule.IdentityReference.Value.Equals(currentUser, StringComparison.OrdinalIgnoreCase))
+                    {
+                        security.RemoveAccessRule(rule);
+                    }
+                }
+
+                // Turn standard Windows inheritance back on
+                security.SetAccessRuleProtection(false, false);
+                dInfo.SetAccessControl(security);
+            }
+            catch { /* Ignore if folder doesn't exist or throws an unexpected error */ }
+        }
+        private void btnchkName_Click_1(object sender, EventArgs e)
+        {
+
+        }
     }
+}
+
+// Add this at the bottom of the file
+public class NetworkItem
+{
+    public string Path { get; set; }
+    public string DisplayName { get; set; }
+    public override string ToString() => DisplayName; // What the CheckBox displays
 }

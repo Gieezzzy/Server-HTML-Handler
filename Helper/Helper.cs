@@ -23,12 +23,9 @@ namespace Server_HTML_Handler.Helper
 
         public static string ConnectionString
         { 
-           get
+            get
             {
-                string encryptedPassword = Properties.Settings.Default.DBmaster;
-                string plainPassword = AesEncryptionHelper.Decrypt(encryptedPassword);
-
-                return $"Server=localhost;Uid=master;Pwd={plainPassword};";
+                return StorageMetricsHelper.GetConnectionString();
             }
         }
 
@@ -199,6 +196,68 @@ namespace Server_HTML_Handler.Helper
         private const string MysqlDumpExePath = @"C:\xampp\mysql\bin\mysqldump.exe";
         private const string ApacheConfigPath = @"C:\xampp\apache\conf\httpd.conf";
         private const string PhpIniPath = @"C:\xampp\php\php.ini";
+        private const string XamppApacheExe = @"C:\xampp\apache\bin\httpd.exe";
+        private static readonly string[] ApacheServiceNames = { "Apache2.4", "apache", "Apache2", "xamppapache" };
+
+        [DllImport("kernel32.dll", SetLastError = true)]
+        private static extern IntPtr OpenProcess(uint access, bool inherit, int pid);
+        [DllImport("kernel32.dll", SetLastError = true)]
+        private static extern bool CloseHandle(IntPtr handle);
+        [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
+        private static extern bool QueryFullProcessImageName(IntPtr process, int flags, StringBuilder exeName, ref int size);
+
+        /// <summary>Full path of a process' executable (works for any process, 32/64-bit). Null when it cannot be read.</summary>
+        public static string GetProcessImagePath(int pid)
+        {
+            IntPtr h = OpenProcess(0x1000 /* PROCESS_QUERY_LIMITED_INFORMATION */, false, pid);
+            if (h == IntPtr.Zero) return null;
+            try
+            {
+                var sb = new StringBuilder(1024);
+                int size = sb.Capacity;
+                return QueryFullProcessImageName(h, 0, sb, ref size) ? sb.ToString(0, size) : null;
+            }
+            finally
+            {
+                CloseHandle(h);
+            }
+        }
+
+        /// <summary>
+        /// The httpd.exe processes of the XAMPP Apache only. Other products run their own httpd.exe (for example the PostgreSQL
+        /// "PEMHTTPD" web server on port 8080); counting those made the handler think Apache was running when it was not.
+        /// </summary>
+        public static List<Process> GetXamppApacheProcesses()
+        {
+            string expected = Path.GetFullPath(XamppApacheExe);
+            var list = new List<Process>();
+            foreach (Process p in Process.GetProcessesByName("httpd"))
+            {
+                string path = null;
+                try { path = GetProcessImagePath(p.Id); } catch { }
+                if (path != null && string.Equals(Path.GetFullPath(path), expected, StringComparison.OrdinalIgnoreCase)) list.Add(p);
+            }
+            return list;
+        }
+
+        /// <summary>True when the XAMPP Apache is up: its httpd.exe is running, or its Windows service is running.</summary>
+        public static bool IsXamppApacheRunning()
+        {
+            if (GetXamppApacheProcesses().Count > 0) return true;
+            foreach (string name in ApacheServiceNames)
+            {
+                try
+                {
+                    using (ServiceController sc = new ServiceController(name))
+                    {
+                        sc.Refresh();
+                        if (sc.Status == ServiceControllerStatus.Running) return true;
+                    }
+                }
+                catch { }
+            }
+            return false;
+        }
 
         public static void ExportDatabaseDump(string dbName, string outputPath)
         {
@@ -368,7 +427,7 @@ namespace Server_HTML_Handler.Helper
         {
             errorMessage = string.Empty;
 
-            if (Process.GetProcessesByName("httpd").Length > 0)
+            if (IsXamppApacheRunning())
             {
                 return true;
             }
@@ -419,7 +478,7 @@ namespace Server_HTML_Handler.Helper
                             p.WaitForExit();
                         }
 
-                        if (Process.GetProcessesByName("httpd").Length > 0)
+                        if (IsXamppApacheRunning())
                         {
                             return true;
                         }
@@ -444,7 +503,7 @@ namespace Server_HTML_Handler.Helper
             {
                 candidateNames.Add(preferredServiceName);
             }
-            candidateNames.AddRange(new[] { "Apache2.4", "apache", "Apache2", "xamppapache" });
+            candidateNames.AddRange(ApacheServiceNames);
 
             foreach (string serviceName in candidateNames.Distinct())
             {
@@ -467,12 +526,15 @@ namespace Server_HTML_Handler.Helper
 
             try
             {
-                if (Process.GetProcessesByName("httpd").Length > 0)
+                // Only the XAMPP Apache is stopped. (taskkill /IM httpd.exe used to kill every httpd.exe on the PC,
+                // including the PostgreSQL PEM web server.)
+                var ours = GetXamppApacheProcesses();
+                if (ours.Count > 0)
                 {
                     ProcessStartInfo psi = new ProcessStartInfo
                     {
                         FileName = "taskkill.exe",
-                        Arguments = "/F /IM httpd.exe /T",
+                        Arguments = "/F /T " + string.Join(" ", ours.Select(x => "/PID " + x.Id)),
                         Verb = "runas",
                         UseShellExecute = true,
                         WindowStyle = ProcessWindowStyle.Normal
@@ -483,16 +545,46 @@ namespace Server_HTML_Handler.Helper
                         p?.WaitForExit();
                     }
                 }
+
+                // Apache that runs as a Windows service under SYSTEM cannot be seen or stopped without elevation.
+                if (IsXamppApacheRunning())
+                {
+                    foreach (string serviceName in candidateNames.Distinct())
+                    {
+                        try
+                        {
+                            using (ServiceController sc = new ServiceController(serviceName))
+                            {
+                                sc.Refresh();
+                                if (sc.Status != ServiceControllerStatus.Running) continue;
+                            }
+
+                            ProcessStartInfo psi = new ProcessStartInfo
+                            {
+                                FileName = "cmd.exe",
+                                Arguments = $"/c net stop \"{serviceName}\"",
+                                Verb = "runas",
+                                UseShellExecute = true,
+                                WindowStyle = ProcessWindowStyle.Normal
+                            };
+                            using (Process p = Process.Start(psi))
+                            {
+                                p?.WaitForExit();
+                            }
+                        }
+                        catch { }
+                    }
+                }
             }
             catch (Exception ex)
             {
-                errorMessage = $"Taskkill failed: {ex.Message}";
+                errorMessage = $"Stopping Apache failed: {ex.Message}";
                 return false;
             }
 
             System.Threading.Thread.Sleep(500);
 
-            if (Process.GetProcessesByName("httpd").Length > 0)
+            if (IsXamppApacheRunning())
             {
                 errorMessage = "Apache process is still active. The Administrator UAC prompt was likely canceled.";
                 return false;
@@ -526,7 +618,16 @@ namespace Server_HTML_Handler.Helper
                 if (File.Exists(Path.Combine(publicFolderPath, "index.php")))
                 {
                     targetFile = "public/index.php";
-                    urlPath = $"/{routeName}/public/";
+                    // If root has .htaccess rewriting to public/, route URL is directly /{routeName}/
+                    string rootHtaccess = Path.Combine(subDir.FullName, ".htaccess");
+                    if (File.Exists(rootHtaccess) && File.ReadAllText(rootHtaccess).Contains("public/"))
+                    {
+                        urlPath = $"/{routeName}/";
+                    }
+                    else
+                    {
+                        urlPath = $"/{routeName}/public/";
+                    }
                 }
                 else if (File.Exists(Path.Combine(publicFolderPath, "index.html")))
                 {
@@ -577,7 +678,7 @@ namespace Server_HTML_Handler.Helper
             if (File.Exists(htaccessPath))
             {
                 string htContent = File.ReadAllText(htaccessPath);
-                if (htContent.Contains("Deny from all"))
+                if (htContent.Contains("Require all denied") || htContent.Contains("Deny from all"))
                 {
                     return "Offline";
                 }
@@ -627,7 +728,7 @@ namespace Server_HTML_Handler.Helper
                 string newRule = "";
                 if (string.Equals(newStatus, "Offline", StringComparison.OrdinalIgnoreCase))
                 {
-                    newRule = "\n\n# --- ROUTE STATUS START ---\nOrder Allow,Deny\nDeny from all\n# --- ROUTE STATUS END ---\n";
+                    newRule = "\n\n# --- ROUTE STATUS START ---\nRequire all denied\n# --- ROUTE STATUS END ---\n";
                 }
                 else if (string.Equals(newStatus, "Maintenance", StringComparison.OrdinalIgnoreCase))
                 {
@@ -1160,8 +1261,8 @@ namespace Server_HTML_Handler.Helper
                 // Fallback to standalone XAMPP httpd.exe process kill/start
             }
 
-            // 2. Kill running httpd.exe instances
-            foreach (var proc in Process.GetProcessesByName("httpd"))
+            // 2. Kill the running XAMPP httpd.exe instances (other products' httpd.exe are left alone)
+            foreach (var proc in GetXamppApacheProcesses())
             {
                 try
                 {
@@ -1172,7 +1273,7 @@ namespace Server_HTML_Handler.Helper
             }
 
             // 3. Relaunch httpd.exe
-            string httpdPath = @"C:\xampp\apache\bin\httpd.exe";
+            string httpdPath = XamppApacheExe;
             if (File.Exists(httpdPath))
             {
                 Process.Start(new ProcessStartInfo

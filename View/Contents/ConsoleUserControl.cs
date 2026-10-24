@@ -1,3 +1,4 @@
+using Server_HTML_Handler.Services;
 ﻿using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
@@ -227,7 +228,19 @@ namespace Server_HTML_Handler.View.Contents
             AppendGuideText("9. EMAIL SERVICE DIAGNOSTICS\n", Color.DarkBlue, true);
             AppendGuideText("   mail test <to_email> [host] [port] Test SMTP connection and send verification mail\n\n", Color.Black, false);
 
-            AppendGuideText("10. SYSTEM DIAGNOSTICS & UTILITIES\n", Color.DarkBlue, true);
+            AppendGuideText("10. MULTI-DEVELOPER DEPLOY & STAGING SYSTEM (NO GIT)\n", Color.DarkBlue, true);
+            AppendGuideText("   deploy list                         List all projects in D:\\html & current selection\n", Color.Black, false);
+            AppendGuideText("   deploy select <project_name>        Select active project (e.g. deploy select NEXUS-L)\n", Color.Black, false);
+            AppendGuideText("   deploy init <dev_tag>-<name>        Create Developing/<proj>/<dev_name>/{Update,Private}\n", Color.Black, false);
+            AppendGuideText("   deploy devs                         List registered developer staging workspaces\n", Color.Black, false);
+            AppendGuideText("   deploy check <dev_tag>-<name>       Verify PHP syntax & show modified/new files in Update\n", Color.Black, false);
+            AppendGuideText("   deploy merge <dev_tag>-<name>       Auto-snapshot backup & merge Update folder into live\n", Color.Black, false);
+            AppendGuideText("   deploy sync-private <dev_tag>-<name> Copy current live site into dev Private test folder\n", Color.Black, false);
+            AppendGuideText("   deploy backups                      List all version snapshot zip backups\n", Color.Black, false);
+            AppendGuideText("   deploy rollback [backup_name]       Restore live project to previous version snapshot\n", Color.Black, false);
+            AppendGuideText("   deploy help                         Display complete developer workflow guide\n\n", Color.Black, false);
+
+            AppendGuideText("11. SYSTEM DIAGNOSTICS & UTILITIES\n", Color.DarkBlue, true);
             AppendGuideText("   service <apache|mysql> <action>    Start, stop, restart or check server daemons\n", Color.Black, false);
             AppendGuideText("   log <apache|mysql> [lines]         View recent error log entries\n", Color.Black, false);
             AppendGuideText("   sysinfo                             Display CPU, RAM, Uptime, and Disk metrics\n", Color.Black, false);
@@ -236,7 +249,7 @@ namespace Server_HTML_Handler.View.Contents
             AppendGuideText("   clear                               Clear the console screen\n", Color.Black, false);
             AppendGuideText("   help                                Display this reference guide\n\n", Color.Black, false);
 
-            AppendGuideText("11. VULNERABLE SECURITY TEST LAB MANAGER\n", Color.DarkBlue, true);
+            AppendGuideText("12. VULNERABLE SECURITY TEST LAB MANAGER\n", Color.DarkBlue, true);
             AppendGuideText("   lab list                            List available vulnerable target applications\n", Color.Black, false);
             AppendGuideText("   lab install <app_name>              Auto-download, extract, and configure test lab\n", Color.Black, false);
             AppendGuideText("   lab start|stop|status|health|logs  Manage and monitor security test lab instances\n\n", Color.Black, false);
@@ -483,6 +496,10 @@ namespace Server_HTML_Handler.View.Contents
 
                     case "env":
                         HandleEnvCommand(parts);
+                        break;
+
+                    case "deploy":
+                        HandleDeployCommand(parts);
                         break;
 
                     case "git":

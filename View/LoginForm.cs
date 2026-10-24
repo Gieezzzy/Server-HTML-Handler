@@ -12,9 +12,33 @@ namespace Server_HTML_Handler.View
 {
     public partial class LoginForm : System.Windows.Forms.Form
     {
+        /// <summary>Set by Logout so the sign-in screen is not skipped again straight away.</summary>
+        public static bool SkipAutoLogin;
+
         public LoginForm()
         {
             InitializeComponent();
+            chkSavePassword.Text = "Remember me (sign in automatically next time)";
+            chkSavePassword.AutoSize = true;
+            this.Shown += LoginForm_Shown;
+        }
+
+        private void LoginForm_Shown(object sender, EventArgs e)
+        {
+            if (SkipAutoLogin) { SkipAutoLogin = false; return; }
+            if (string.IsNullOrEmpty(Properties.Settings.Default.HTMLPath)) return; // first run still needs the folder question
+            if (Helper.AppLoginStore.TryGetRemembered(out string user, out string hash))
+            {
+                chkSavePassword.Checked = true;
+                OpenDashboard();
+            }
+        }
+
+        private void OpenDashboard()
+        {
+            Server_HTML_Handler.View.Panel.DashboardPanel dashboard = new Server_HTML_Handler.View.Panel.DashboardPanel();
+            dashboard.Show();
+            this.Hide();
         }
 
         private void btnLogin_Click(object sender, System.EventArgs e)
@@ -45,33 +69,20 @@ namespace Server_HTML_Handler.View
             }
 
         
-            string hashedInputPassword;
-            using (System.Security.Cryptography.SHA256 sha256 = System.Security.Cryptography.SHA256.Create())
-            {
-                byte[] bytes = System.Text.Encoding.UTF8.GetBytes(password);
-                byte[] hashBytes = sha256.ComputeHash(bytes);
+            // The sign-in is shared by every build on this PC (debug, published, new installs): see AppLoginStore.
+            string hashedInputPassword = Helper.AppLoginStore.Hash(password);
 
-                System.Text.StringBuilder sb = new System.Text.StringBuilder();
-                foreach (byte b in hashBytes)
+            // Validate the inserted details
+            if (Helper.AppLoginStore.Verify(username, hashedInputPassword))
+            {
+                try
                 {
-                    sb.Append(b.ToString("x2"));
+                    if (chkSavePassword.Checked) Helper.AppLoginStore.Remember(username, hashedInputPassword);
+                    else Helper.AppLoginStore.Forget();
                 }
-                hashedInputPassword = sb.ToString();
-            }
+                catch { /* remembering is optional: never block the sign-in */ }
 
-            // 3. Fetch Master credentials from application settings
-            string masterUser = Properties.Settings.Default.MasterUser;
-            string masterPasswordHash = Properties.Settings.Default.MasterPassword;
-
-            // 4. Validate inserted details against the settings
-            if (username == masterUser && hashedInputPassword.Equals(masterPasswordHash, System.StringComparison.OrdinalIgnoreCase))
-            {
-                System.Windows.Forms.MessageBox.Show("Login Successful!", "Success", System.Windows.Forms.MessageBoxButtons.OK, System.Windows.Forms.MessageBoxIcon.Information);
-
-                // Open the Dashboard Panel and hide the Login form
-                Server_HTML_Handler.View.Panel.DashboardPanel dashboard = new Server_HTML_Handler.View.Panel.DashboardPanel();
-                dashboard.Show();
-                this.Hide();
+                OpenDashboard();
             }
             else
             {

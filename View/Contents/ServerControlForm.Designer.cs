@@ -1,4 +1,4 @@
-﻿namespace Server_HTML_Handler.View.Contents
+namespace Server_HTML_Handler.View.Contents
 {
     partial class ServerControlForm
     {
@@ -28,6 +28,8 @@
             this.btnTestDbConnection = new System.Windows.Forms.Button();
             this.chkShowPassword = new System.Windows.Forms.CheckBox();
             this.label1 = new System.Windows.Forms.Label();
+            this.btnChangeAdminCredentials = new System.Windows.Forms.Button();
+            this.btnResetUserPassword = new System.Windows.Forms.Button();
             this.dgvDatabaseUsers = new System.Windows.Forms.DataGridView();
             this.lblNewUsername = new System.Windows.Forms.Label();
             this.txtNewUsername = new System.Windows.Forms.TextBox();
@@ -115,6 +117,18 @@
             this.btnRefreshServiceStatus = new System.Windows.Forms.Button();
             this.lblMysqlStatus = new System.Windows.Forms.Label();
             this.lblApacheStatus = new System.Windows.Forms.Label();
+            this.tabNetworkSecurity = new System.Windows.Forms.TabPage();
+            this.panelAccess = new System.Windows.Forms.Panel();
+            this.panelFolderFiles = new System.Windows.Forms.Panel();
+            this.grpNetworkSecurity = new System.Windows.Forms.GroupBox();
+            this.btnResetPermissions = new System.Windows.Forms.Button();
+            this.lblNetPath = new System.Windows.Forms.Label();
+            this.txtNetPath = new System.Windows.Forms.TextBox();
+            this.btnApplyReadOnly = new System.Windows.Forms.Button();
+            this.lblIP = new System.Windows.Forms.Label();
+            this.txtWriteIP = new System.Windows.Forms.TextBox();
+            this.btnApplyIP = new System.Windows.Forms.Button();
+            this.btnHide = new System.Windows.Forms.Button();
             this.tabControlServer.SuspendLayout();
             this.tabDatabaseUsers.SuspendLayout();
             this.grpAccountInfo.SuspendLayout();
@@ -133,6 +147,8 @@
             this.tabServiceHealth.SuspendLayout();
             this.grpLogsViewer.SuspendLayout();
             this.grpServicesControl.SuspendLayout();
+            this.tabNetworkSecurity.SuspendLayout();
+            this.grpNetworkSecurity.SuspendLayout();
             this.SuspendLayout();
             // 
             // tabControlServer
@@ -141,6 +157,7 @@
             this.tabControlServer.Controls.Add(this.tabHtmlPermissions);
             this.tabControlServer.Controls.Add(this.tabBackupsPaths);
             this.tabControlServer.Controls.Add(this.tabServiceHealth);
+            this.tabControlServer.Controls.Add(this.tabNetworkSecurity);
             this.tabControlServer.Dock = System.Windows.Forms.DockStyle.Fill;
             this.tabControlServer.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
             this.tabControlServer.Location = new System.Drawing.Point(0, 0);
@@ -171,6 +188,8 @@
             | System.Windows.Forms.AnchorStyles.Right)));
             this.grpAccountInfo.Controls.Add(this.btnTestDbConnection);
             this.grpAccountInfo.Controls.Add(this.chkShowPassword);
+            this.grpAccountInfo.Controls.Add(this.btnChangeAdminCredentials);
+            this.grpAccountInfo.Controls.Add(this.btnResetUserPassword);
             this.grpAccountInfo.Controls.Add(this.label1);
             this.grpAccountInfo.Controls.Add(this.dgvDatabaseUsers);
             this.grpAccountInfo.Controls.Add(this.lblNewUsername);
@@ -218,7 +237,6 @@
             this.chkShowPassword.TabIndex = 11;
             this.chkShowPassword.Text = "Show";
             this.chkShowPassword.UseVisualStyleBackColor = true;
-            this.chkShowPassword.CheckedChanged += new System.EventHandler(this.chkShowPassword_CheckedChanged);
             // 
             // label1
             // 
@@ -231,6 +249,40 @@
             this.label1.TabIndex = 10;
             this.label1.Text = "List of Users:";
             // 
+            // btnChangeAdminCredentials
+            // 
+            this.btnChangeAdminCredentials.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
+            this.btnChangeAdminCredentials.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(41)))), ((int)(((byte)(128)))), ((int)(((byte)(185)))));
+            this.btnChangeAdminCredentials.Cursor = System.Windows.Forms.Cursors.Hand;
+            this.btnChangeAdminCredentials.FlatAppearance.BorderSize = 0;
+            this.btnChangeAdminCredentials.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
+            this.btnChangeAdminCredentials.Font = new System.Drawing.Font("Segoe UI Semibold", 8.25F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            this.btnChangeAdminCredentials.ForeColor = System.Drawing.Color.White;
+            this.btnChangeAdminCredentials.Location = new System.Drawing.Point(326, 75);
+            this.btnChangeAdminCredentials.Name = "btnChangeAdminCredentials";
+            this.btnChangeAdminCredentials.Size = new System.Drawing.Size(174, 25);
+            this.btnChangeAdminCredentials.TabIndex = 13;
+            this.btnChangeAdminCredentials.Text = "⚙️ Admin Credentials";
+            this.btnChangeAdminCredentials.UseVisualStyleBackColor = false;
+            this.btnChangeAdminCredentials.Click += new System.EventHandler(this.btnChangeAdminCredentials_Click);
+            // 
+            // btnResetUserPassword
+            // 
+            this.btnResetUserPassword.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
+            this.btnResetUserPassword.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(230)))), ((int)(((byte)(126)))), ((int)(((byte)(34)))));
+            this.btnResetUserPassword.Cursor = System.Windows.Forms.Cursors.Hand;
+            this.btnResetUserPassword.FlatAppearance.BorderSize = 0;
+            this.btnResetUserPassword.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
+            this.btnResetUserPassword.Font = new System.Drawing.Font("Segoe UI Semibold", 8.25F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            this.btnResetUserPassword.ForeColor = System.Drawing.Color.White;
+            this.btnResetUserPassword.Location = new System.Drawing.Point(506, 75);
+            this.btnResetUserPassword.Name = "btnResetUserPassword";
+            this.btnResetUserPassword.Size = new System.Drawing.Size(170, 25);
+            this.btnResetUserPassword.TabIndex = 11;
+            this.btnResetUserPassword.Text = "🔑 Reset Selected Password";
+            this.btnResetUserPassword.UseVisualStyleBackColor = false;
+            this.btnResetUserPassword.Click += new System.EventHandler(this.btnResetUserPassword_Click);
+            // 
             // dgvDatabaseUsers
             // 
             this.dgvDatabaseUsers.Anchor = ((System.Windows.Forms.AnchorStyles)((((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom) 
@@ -239,7 +291,7 @@
             this.dgvDatabaseUsers.AutoSizeColumnsMode = System.Windows.Forms.DataGridViewAutoSizeColumnsMode.Fill;
             this.dgvDatabaseUsers.BackgroundColor = System.Drawing.Color.FromArgb(((int)(((byte)(30)))), ((int)(((byte)(30)))), ((int)(((byte)(30)))));
             dataGridViewCellStyle1.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(20)))), ((int)(((byte)(20)))), ((int)(((byte)(20)))));
-            dataGridViewCellStyle1.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Bold);
+            dataGridViewCellStyle1.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
             dataGridViewCellStyle1.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(0)))), ((int)(((byte)(229)))), ((int)(((byte)(255)))));
             dataGridViewCellStyle1.SelectionBackColor = System.Drawing.Color.FromArgb(((int)(((byte)(30)))), ((int)(((byte)(30)))), ((int)(((byte)(30)))));
             dataGridViewCellStyle1.SelectionForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(0)))), ((int)(((byte)(229)))), ((int)(((byte)(255)))));
@@ -248,7 +300,7 @@
             dataGridViewCellStyle2.Alignment = System.Windows.Forms.DataGridViewContentAlignment.MiddleLeft;
             dataGridViewCellStyle2.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(40)))), ((int)(((byte)(40)))), ((int)(((byte)(40)))));
             dataGridViewCellStyle2.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            dataGridViewCellStyle2.ForeColor = System.Drawing.Color.White;
+            dataGridViewCellStyle2.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(0)))), ((int)(((byte)(229)))), ((int)(((byte)(255)))));
             dataGridViewCellStyle2.SelectionBackColor = System.Drawing.Color.FromArgb(((int)(((byte)(0)))), ((int)(((byte)(122)))), ((int)(((byte)(204)))));
             dataGridViewCellStyle2.SelectionForeColor = System.Drawing.Color.White;
             dataGridViewCellStyle2.WrapMode = System.Windows.Forms.DataGridViewTriState.False;
@@ -259,7 +311,6 @@
             this.dgvDatabaseUsers.Name = "dgvDatabaseUsers";
             this.dgvDatabaseUsers.Size = new System.Drawing.Size(670, 131);
             this.dgvDatabaseUsers.TabIndex = 9;
-            this.dgvDatabaseUsers.CellContentClick += new System.Windows.Forms.DataGridViewCellEventHandler(this.dgvDatabaseUsers_CellContentClick);
             // 
             // lblNewUsername
             // 
@@ -380,7 +431,6 @@
             this.chkGlobalCheckAll.TabIndex = 1;
             this.chkGlobalCheckAll.Text = "Global Privileges (Check All)";
             this.chkGlobalCheckAll.UseVisualStyleBackColor = true;
-            this.chkGlobalCheckAll.CheckedChanged += new System.EventHandler(this.chkGlobalCheckAll_CheckedChanged);
             // 
             // grpDataPriv
             // 
@@ -846,7 +896,7 @@
             dataGridViewCellStyle4.Alignment = System.Windows.Forms.DataGridViewContentAlignment.MiddleLeft;
             dataGridViewCellStyle4.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(40)))), ((int)(((byte)(40)))), ((int)(((byte)(40)))));
             dataGridViewCellStyle4.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Bold);
-            dataGridViewCellStyle4.ForeColor = System.Drawing.Color.White;
+            dataGridViewCellStyle4.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(0)))), ((int)(((byte)(229)))), ((int)(((byte)(255)))));
             dataGridViewCellStyle4.SelectionBackColor = System.Drawing.Color.FromArgb(((int)(((byte)(0)))), ((int)(((byte)(122)))), ((int)(((byte)(204)))));
             dataGridViewCellStyle4.SelectionForeColor = System.Drawing.Color.White;
             dataGridViewCellStyle4.WrapMode = System.Windows.Forms.DataGridViewTriState.False;
@@ -857,7 +907,7 @@
             this.dgvAclPermissions.Name = "dgvAclPermissions";
             this.dgvAclPermissions.Size = new System.Drawing.Size(678, 215);
             this.dgvAclPermissions.TabIndex = 8;
-            this.dgvAclPermissions.CellValueChanged += new System.Windows.Forms.DataGridViewCellEventHandler(this.dgvAclPermissions_CellValueChanged);
+            this.dgvAclPermissions.CurrentCellDirtyStateChanged += new System.EventHandler(this.DgvAclPermissions_CurrentCellDirtyStateChanged);
             // 
             // btnBrowseACLPath
             // 
@@ -1040,7 +1090,7 @@
             dataGridViewCellStyle5.Alignment = System.Windows.Forms.DataGridViewContentAlignment.MiddleLeft;
             dataGridViewCellStyle5.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(40)))), ((int)(((byte)(40)))), ((int)(((byte)(40)))));
             dataGridViewCellStyle5.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Bold);
-            dataGridViewCellStyle5.ForeColor = System.Drawing.Color.White;
+            dataGridViewCellStyle5.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(0)))), ((int)(((byte)(229)))), ((int)(((byte)(255)))));
             dataGridViewCellStyle5.SelectionBackColor = System.Drawing.Color.FromArgb(((int)(((byte)(0)))), ((int)(((byte)(122)))), ((int)(((byte)(204)))));
             dataGridViewCellStyle5.SelectionForeColor = System.Drawing.Color.White;
             dataGridViewCellStyle5.WrapMode = System.Windows.Forms.DataGridViewTriState.False;
@@ -1051,7 +1101,6 @@
             this.dgvStorageFolders.Name = "dgvStorageFolders";
             this.dgvStorageFolders.Size = new System.Drawing.Size(678, 145);
             this.dgvStorageFolders.TabIndex = 9;
-            this.dgvStorageFolders.CellContentClick += new System.Windows.Forms.DataGridViewCellEventHandler(this.dgvStorageFolders_CellContentClick);
             // 
             // btnUploadPath
             // 
@@ -1481,6 +1530,135 @@
             this.lblApacheStatus.TabIndex = 0;
             this.lblApacheStatus.Text = "Apache: Checking...";
             // 
+            // tabNetworkSecurity
+            // 
+            this.tabNetworkSecurity.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(25)))), ((int)(((byte)(25)))), ((int)(((byte)(25)))));
+            this.tabNetworkSecurity.Controls.Add(this.panelAccess);
+            this.tabNetworkSecurity.Controls.Add(this.panelFolderFiles);
+            this.tabNetworkSecurity.Controls.Add(this.grpNetworkSecurity);
+            this.tabNetworkSecurity.ForeColor = System.Drawing.Color.White;
+            this.tabNetworkSecurity.Location = new System.Drawing.Point(4, 24);
+            this.tabNetworkSecurity.Name = "tabNetworkSecurity";
+            this.tabNetworkSecurity.Padding = new System.Windows.Forms.Padding(10);
+            this.tabNetworkSecurity.Size = new System.Drawing.Size(708, 616);
+            this.tabNetworkSecurity.TabIndex = 4;
+            this.tabNetworkSecurity.Text = "Network Access & Security";
+            // 
+            // panelAccess
+            // 
+            this.panelAccess.Dock = System.Windows.Forms.DockStyle.Fill;
+            this.panelAccess.Location = new System.Drawing.Point(470, 200);
+            this.panelAccess.Name = "panelAccess";
+            this.panelAccess.Size = new System.Drawing.Size(228, 406);
+            this.panelAccess.TabIndex = 2;
+            // 
+            // panelFolderFiles
+            // 
+            this.panelFolderFiles.Dock = System.Windows.Forms.DockStyle.Left;
+            this.panelFolderFiles.Location = new System.Drawing.Point(10, 200);
+            this.panelFolderFiles.Name = "panelFolderFiles";
+            this.panelFolderFiles.Size = new System.Drawing.Size(460, 406);
+            this.panelFolderFiles.TabIndex = 1;
+            // 
+            // grpNetworkSecurity
+            // 
+            this.grpNetworkSecurity.Controls.Add(this.btnResetPermissions);
+            this.grpNetworkSecurity.Controls.Add(this.lblNetPath);
+            this.grpNetworkSecurity.Controls.Add(this.txtNetPath);
+            this.grpNetworkSecurity.Controls.Add(this.btnApplyReadOnly);
+            this.grpNetworkSecurity.Controls.Add(this.lblIP);
+            this.grpNetworkSecurity.Controls.Add(this.txtWriteIP);
+            this.grpNetworkSecurity.Controls.Add(this.btnApplyIP);
+            this.grpNetworkSecurity.Controls.Add(this.btnHide);
+            this.grpNetworkSecurity.Dock = System.Windows.Forms.DockStyle.Top;
+            this.grpNetworkSecurity.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Bold);
+            this.grpNetworkSecurity.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(0)))), ((int)(((byte)(229)))), ((int)(((byte)(255)))));
+            this.grpNetworkSecurity.Location = new System.Drawing.Point(10, 10);
+            this.grpNetworkSecurity.Name = "grpNetworkSecurity";
+            this.grpNetworkSecurity.Size = new System.Drawing.Size(688, 190);
+            this.grpNetworkSecurity.TabIndex = 0;
+            this.grpNetworkSecurity.TabStop = false;
+            this.grpNetworkSecurity.Text = "File Explorer & Web IP Restrictions";
+            // 
+            // btnResetPermissions
+            // 
+            this.btnResetPermissions.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
+            this.btnResetPermissions.Location = new System.Drawing.Point(180, 135);
+            this.btnResetPermissions.Name = "btnResetPermissions";
+            this.btnResetPermissions.Size = new System.Drawing.Size(200, 27);
+            this.btnResetPermissions.TabIndex = 9;
+            this.btnResetPermissions.Text = "Reset";
+            this.btnResetPermissions.Click += new System.EventHandler(this.btnReset_Click);
+            // 
+            // lblNetPath
+            // 
+            this.lblNetPath.AutoSize = true;
+            this.lblNetPath.ForeColor = System.Drawing.Color.White;
+            this.lblNetPath.Location = new System.Drawing.Point(20, 40);
+            this.lblNetPath.Name = "lblNetPath";
+            this.lblNetPath.Size = new System.Drawing.Size(112, 15);
+            this.lblNetPath.TabIndex = 0;
+            this.lblNetPath.Text = "Target Folder Path:";
+            // 
+            // txtNetPath
+            // 
+            this.txtNetPath.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(42)))), ((int)(((byte)(42)))), ((int)(((byte)(42)))));
+            this.txtNetPath.ForeColor = System.Drawing.Color.White;
+            this.txtNetPath.Location = new System.Drawing.Point(180, 37);
+            this.txtNetPath.Name = "txtNetPath";
+            this.txtNetPath.ReadOnly = true;
+            this.txtNetPath.Size = new System.Drawing.Size(280, 23);
+            this.txtNetPath.TabIndex = 1;
+            // 
+            // btnApplyReadOnly
+            // 
+            this.btnApplyReadOnly.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
+            this.btnApplyReadOnly.Location = new System.Drawing.Point(470, 35);
+            this.btnApplyReadOnly.Name = "btnApplyReadOnly";
+            this.btnApplyReadOnly.Size = new System.Drawing.Size(200, 27);
+            this.btnApplyReadOnly.TabIndex = 2;
+            this.btnApplyReadOnly.Text = "Set Everyone Read-Only";
+            this.btnApplyReadOnly.Click += new System.EventHandler(this.btnApplyReadOnly_Click);
+            // 
+            // lblIP
+            // 
+            this.lblIP.AutoSize = true;
+            this.lblIP.ForeColor = System.Drawing.Color.White;
+            this.lblIP.Location = new System.Drawing.Point(20, 90);
+            this.lblIP.Name = "lblIP";
+            this.lblIP.Size = new System.Drawing.Size(127, 15);
+            this.lblIP.TabIndex = 3;
+            this.lblIP.Text = "Allow Write IP (Web):";
+            // 
+            // txtWriteIP
+            // 
+            this.txtWriteIP.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(42)))), ((int)(((byte)(42)))), ((int)(((byte)(42)))));
+            this.txtWriteIP.ForeColor = System.Drawing.Color.White;
+            this.txtWriteIP.Location = new System.Drawing.Point(180, 87);
+            this.txtWriteIP.Name = "txtWriteIP";
+            this.txtWriteIP.Size = new System.Drawing.Size(280, 23);
+            this.txtWriteIP.TabIndex = 4;
+            // 
+            // btnApplyIP
+            // 
+            this.btnApplyIP.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
+            this.btnApplyIP.Location = new System.Drawing.Point(470, 85);
+            this.btnApplyIP.Name = "btnApplyIP";
+            this.btnApplyIP.Size = new System.Drawing.Size(200, 27);
+            this.btnApplyIP.TabIndex = 5;
+            this.btnApplyIP.Text = "Apply Write IP Restriction";
+            this.btnApplyIP.Click += new System.EventHandler(this.btnApplyIP_Click);
+            // 
+            // btnHide
+            // 
+            this.btnHide.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
+            this.btnHide.Location = new System.Drawing.Point(470, 135);
+            this.btnHide.Name = "btnHide";
+            this.btnHide.Size = new System.Drawing.Size(200, 27);
+            this.btnHide.TabIndex = 8;
+            this.btnHide.Text = "Apply Visibility (Hide/Show)";
+            this.btnHide.Click += new System.EventHandler(this.btnHide_Click);
+            // 
             // ServerControlForm
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
@@ -1519,6 +1697,9 @@
             this.grpLogsViewer.PerformLayout();
             this.grpServicesControl.ResumeLayout(false);
             this.grpServicesControl.PerformLayout();
+            this.tabNetworkSecurity.ResumeLayout(false);
+            this.grpNetworkSecurity.ResumeLayout(false);
+            this.grpNetworkSecurity.PerformLayout();
             this.ResumeLayout(false);
 
         }
@@ -1530,6 +1711,17 @@
         private System.Windows.Forms.TabPage tabHtmlPermissions;
         private System.Windows.Forms.TabPage tabBackupsPaths;
         private System.Windows.Forms.TabPage tabServiceHealth;
+
+        // --- NEW NETWORK CONTROLS DECLARATIONS ---
+        private System.Windows.Forms.TabPage tabNetworkSecurity;
+        private System.Windows.Forms.GroupBox grpNetworkSecurity;
+        private System.Windows.Forms.Label lblNetPath;
+        private System.Windows.Forms.TextBox txtNetPath;
+        private System.Windows.Forms.Button btnApplyReadOnly;
+        private System.Windows.Forms.Label lblIP;
+        private System.Windows.Forms.TextBox txtWriteIP;
+        private System.Windows.Forms.Button btnApplyIP;
+        private System.Windows.Forms.Button btnHide;
 
         // Tab 1 Controls
         private System.Windows.Forms.GroupBox grpAccountInfo;
@@ -1616,6 +1808,8 @@
         private System.Windows.Forms.Label lblConsumedStorage;
         private System.Windows.Forms.DataGridView dgvDatabaseUsers;
         private System.Windows.Forms.Label label1;
+        private System.Windows.Forms.Button btnChangeAdminCredentials;
+        private System.Windows.Forms.Button btnResetUserPassword;
         private System.Windows.Forms.Button btnchkName;
         private System.Windows.Forms.Label label2;
         private System.Windows.Forms.Button button1;
@@ -1631,5 +1825,8 @@
         private System.Windows.Forms.TextBox txtServerLogs;
         private System.Windows.Forms.ComboBox cmbLogType;
         private System.Windows.Forms.Button btnLoadLogs;
+        private System.Windows.Forms.Panel panelFolderFiles;
+        private System.Windows.Forms.Panel panelAccess;
+        private System.Windows.Forms.Button btnResetPermissions;
     }
 }

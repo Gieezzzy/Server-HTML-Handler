@@ -1,0 +1,374 @@
+{
+  "Controller/ControllerService.cs": {
+    "mtime": 1789005950.2366788,
+    "seen": 1792796430.7297924,
+    "ast_hash": "ae646537790270bd3ca215c3b0a370be",
+    "semantic_hash": ""
+  },
+  "Database/dbBase.cs": {
+    "mtime": 1792546039.6533532,
+    "seen": 1792796430.7297974,
+    "ast_hash": "d934d22e0c6555ee549272d28289251d",
+    "semantic_hash": ""
+  },
+  "Form1.Designer.cs": {
+    "mtime": 1788923624.05291,
+    "seen": 1792796430.7297997,
+    "ast_hash": "b1049264be88d78a61a9a2bdf4b2cbe9",
+    "semantic_hash": ""
+  },
+  "Form1.cs": {
+    "mtime": 1788923624.0404296,
+    "seen": 1792796430.729801,
+    "ast_hash": "62ef600b7581039cfa16e10646589156",
+    "semantic_hash": ""
+  },
+  "Helper/AesEncryptionHelper.cs": {
+    "mtime": 1792546061.4092536,
+    "seen": 1792796430.7298021,
+    "ast_hash": "30f79995aff6b2b4ccfb18a20751aebd",
+    "semantic_hash": ""
+  },
+  "Helper/AppLoginStore.cs": {
+    "mtime": 1792746876.9926918,
+    "seen": 1792796430.7298036,
+    "ast_hash": "cde9fddccf7279aed8f90e416fcae8e1",
+    "semantic_hash": ""
+  },
+  "Helper/Helper.cs": {
+    "mtime": 1792805617.9827127,
+    "seen": 1792806084.3770378,
+    "ast_hash": "390bbb1a5dc142e0a94f703362b9d0ed",
+    "semantic_hash": ""
+  },
+  "Helper/TestLabHelper.cs": {
+    "mtime": 1789191057.1426315,
+    "seen": 1792796430.7298057,
+    "ast_hash": "95e12b9d3d1f264309f56680e69583a9",
+    "semantic_hash": ""
+  },
+  "Model/RouteInfo.cs": {
+    "mtime": 1789018203.339278,
+    "seen": 1792796430.729807,
+    "ast_hash": "2de3db35677e56abebeb51aeb9ab7c15",
+    "semantic_hash": ""
+  },
+  "Nullable/AllowNullAttribute.cs": {
+    "mtime": 1789006647.0001235,
+    "seen": 1792796430.7298079,
+    "ast_hash": "98cf75e067dedeb5272f7f58acfe04ad",
+    "semantic_hash": ""
+  },
+  "Nullable/DisallowNullAttribute.cs": {
+    "mtime": 1789006646.9363291,
+    "seen": 1792796430.7298088,
+    "ast_hash": "2f57def02134b6b807455ea76bf762c4",
+    "semantic_hash": ""
+  },
+  "Nullable/DoesNotReturnAttribute.cs": {
+    "mtime": 1789006646.8690813,
+    "seen": 1792796430.7298102,
+    "ast_hash": "6b4c71a9968e0fd5c7b6262644890153",
+    "semantic_hash": ""
+  },
+  "Nullable/DoesNotReturnIfAttribute.cs": {
+    "mtime": 1789006646.812101,
+    "seen": 1792796430.7298114,
+    "ast_hash": "d3d375be46ae35c4915defab1a3b060e",
+    "semantic_hash": ""
+  },
+  "Nullable/MaybeNullAttribute.cs": {
+    "mtime": 1789006646.7271233,
+    "seen": 1792796430.7298124,
+    "ast_hash": "aba4895e0a2b5dabe6b283711c55494c",
+    "semantic_hash": ""
+  },
+  "Nullable/MaybeNullWhenAttribute.cs": {
+    "mtime": 1789006646.6705894,
+    "seen": 1792796430.7298136,
+    "ast_hash": "9a675e319f63079e4f6a9d073c90761f",
+    "semantic_hash": ""
+  },
+  "Nullable/MemberNotNullAttribute.cs": {
+    "mtime": 1789006646.6346948,
+    "seen": 1792796430.7298145,
+    "ast_hash": "1358f9ce030a1d65c328ad413c336528",
+    "semantic_hash": ""
+  },
+  "Nullable/MemberNotNullWhenAttribute.cs": {
+    "mtime": 1789006646.5680957,
+    "seen": 1792796430.7298157,
+    "ast_hash": "c9827c108ae61c993a85c9c8e6360658",
+    "semantic_hash": ""
+  },
+  "Nullable/NotNullAttribute.cs": {
+    "mtime": 1789006646.522163,
+    "seen": 1792796430.7298172,
+    "ast_hash": "42660311536d8820ec9a37852590f850",
+    "semantic_hash": ""
+  },
+  "Nullable/NotNullIfNotNullAttribute.cs": {
+    "mtime": 1789006646.4745193,
+    "seen": 1792796430.729818,
+    "ast_hash": "d4cd99bd56b8d8887f01a55a0e79c6b5",
+    "semantic_hash": ""
+  },
+  "Nullable/NotNullWhenAttribute.cs": {
+    "mtime": 1789006646.4130013,
+    "seen": 1792796430.729819,
+    "ast_hash": "671d5ac57fcec2b09caf464f22a888a2",
+    "semantic_hash": ""
+  },
+  "Program.cs": {
+    "mtime": 1792744768.2727497,
+    "seen": 1792796430.7298203,
+    "ast_hash": "152dabf599c5a1fc0575bac19d258adb",
+    "semantic_hash": ""
+  },
+  "Properties/AssemblyInfo.cs": {
+    "mtime": 1788923623.6625512,
+    "seen": 1792796430.7298214,
+    "ast_hash": "2abf4768db60c457d37293523cfa92a4",
+    "semantic_hash": ""
+  },
+  "Properties/Resources.Designer.cs": {
+    "mtime": 1789189211.538194,
+    "seen": 1792796430.7298229,
+    "ast_hash": "9094aa6dbc74392eddee21c7cfd4f491",
+    "semantic_hash": ""
+  },
+  "Properties/Settings.Designer.cs": {
+    "mtime": 1789189212.6742291,
+    "seen": 1792796430.729824,
+    "ast_hash": "71164ab4e97b435be8d3a14506aa39a4",
+    "semantic_hash": ""
+  },
+  "Routes/RouteConfig.cs": {
+    "mtime": 1789002111.0852604,
+    "seen": 1792796430.7298253,
+    "ast_hash": "8daf48915e530a30a897128bc927b961",
+    "semantic_hash": ""
+  },
+  "Server HTML Handler.csproj": {
+    "mtime": 1792806040.729827,
+    "seen": 1792806084.3770642,
+    "ast_hash": "a93da9fa9e8a350e46b13244820fdaf6",
+    "semantic_hash": ""
+  },
+  "Server HTML Handler.sln": {
+    "mtime": 1788923626.004487,
+    "seen": 1792796430.7298276,
+    "ast_hash": "0960e81b6c2ddb8e3479d9f723348a64",
+    "semantic_hash": ""
+  },
+  "Services/ApacheWatchdogService.cs": {
+    "mtime": 1792745539.3788915,
+    "seen": 1792796430.7298286,
+    "ast_hash": "d2b3120ee5032a3d8837cb0c50c41688",
+    "semantic_hash": ""
+  },
+  "Services/CallSignalingService.cs": {
+    "mtime": 1792794074.5395284,
+    "seen": 1792796430.7298295,
+    "ast_hash": "2e92f31b45646f5f5d30687a1b8796e6",
+    "semantic_hash": ""
+  },
+  "Services/DeploymentStagingService.cs": {
+    "mtime": 1792480593.2006943,
+    "seen": 1792796430.729831,
+    "ast_hash": "e450362c698279f479c1f9e9213346f8",
+    "semantic_hash": ""
+  },
+  "Services/NotificationDispatcherService.cs": {
+    "mtime": 1792805617.9698994,
+    "seen": 1792806084.3770711,
+    "ast_hash": "ed3576e8ea0f7cadaad53b5fca1e0076",
+    "semantic_hash": ""
+  },
+  "Services/ShareControlService.cs": {
+    "mtime": 1792746652.2155294,
+    "seen": 1792796430.729833,
+    "ast_hash": "5f47d7e6a8ae63a65796abff72c40fdb",
+    "semantic_hash": ""
+  },
+  "View/Contents/CallServerUserControl.Designer.cs": {
+    "mtime": 1792472029.215208,
+    "seen": 1792796430.7298343,
+    "ast_hash": "6b041d5fb4710e564e802b253e540aa0",
+    "semantic_hash": ""
+  },
+  "View/Contents/CallServerUserControl.cs": {
+    "mtime": 1792472279.6629734,
+    "seen": 1792796430.7298355,
+    "ast_hash": "5218db7741957663a51d3fc132a368d0",
+    "semantic_hash": ""
+  },
+  "View/Contents/CodeEditorUserControl.Designer.cs": {
+    "mtime": 1789176212.7043238,
+    "seen": 1792796430.7298365,
+    "ast_hash": "9f090ecfdc5d5f30c882c7addb611284",
+    "semantic_hash": ""
+  },
+  "View/Contents/CodeEditorUserControl.cs": {
+    "mtime": 1789184457.658821,
+    "seen": 1792796430.7298377,
+    "ast_hash": "b7357b33915b7b93d7b881a40892fcc4",
+    "semantic_hash": ""
+  },
+  "View/Contents/ConsoleUserControl.Deploy.cs": {
+    "mtime": 1792480705.6806183,
+    "seen": 1792796430.7298386,
+    "ast_hash": "fcc6a6ba01584dcb453b624a33321d71",
+    "semantic_hash": ""
+  },
+  "View/Contents/ConsoleUserControl.Designer.cs": {
+    "mtime": 1789184735.2878122,
+    "seen": 1792796430.7298398,
+    "ast_hash": "2450cd95dffbf6148d3477187b8153f3",
+    "semantic_hash": ""
+  },
+  "View/Contents/ConsoleUserControl.cs": {
+    "mtime": 1792480651.7110116,
+    "seen": 1792796430.729841,
+    "ast_hash": "e73e2c0ebfaa33335e454ab35eb5feab",
+    "semantic_hash": ""
+  },
+  "View/Contents/DashbaordContents.Designer.cs": {
+    "mtime": 1789340884.9766746,
+    "seen": 1792796430.729842,
+    "ast_hash": "2ea10f15ab49c524539a00f6e4888cc5",
+    "semantic_hash": ""
+  },
+  "View/Contents/DashbaordContents.cs": {
+    "mtime": 1792805617.9837174,
+    "seen": 1792806084.377085,
+    "ast_hash": "20aa9550a87b7d77a1bc00b7971a17b7",
+    "semantic_hash": ""
+  },
+  "View/Contents/NotificationHubUserControl.Designer.cs": {
+    "mtime": 1792564471.128062,
+    "seen": 1792796430.7298443,
+    "ast_hash": "224fbdea2eb8ed91d6520ae837c5085a",
+    "semantic_hash": ""
+  },
+  "View/Contents/NotificationHubUserControl.cs": {
+    "mtime": 1792744815.945566,
+    "seen": 1792796430.7298455,
+    "ast_hash": "89d9d16791550f9a8a48e0e0b9a4f664",
+    "semantic_hash": ""
+  },
+  "View/Contents/ProjectViewUserControl.Designer.cs": {
+    "mtime": 1792472202.4308677,
+    "seen": 1792796430.729847,
+    "ast_hash": "bc1c326f5e12d24baacaf29840b3c9ba",
+    "semantic_hash": ""
+  },
+  "View/Contents/ProjectViewUserControl.cs": {
+    "mtime": 1792472209.8751023,
+    "seen": 1792796430.7298481,
+    "ast_hash": "30a8b34e82a9dfdf56a4e99aa34a7315",
+    "semantic_hash": ""
+  },
+  "View/Contents/ServerControlForm.Designer.cs": {
+    "mtime": 1792546162.6128411,
+    "seen": 1792796430.729849,
+    "ast_hash": "28dc99f19c763cee2b5456b4c7a8f73f",
+    "semantic_hash": ""
+  },
+  "View/Contents/ServerControlForm.cs": {
+    "mtime": 1792745499.7620375,
+    "seen": 1792796430.72985,
+    "ast_hash": "4602f21e128d3d0db7835c3f860de33f",
+    "semantic_hash": ""
+  },
+  "View/Contents/ServerControlUserControl.Designer.cs": {
+    "mtime": 1789191395.9580061,
+    "seen": 1792796430.7298515,
+    "ast_hash": "5fa809d9ce604da15ff86d3cd0260c64",
+    "semantic_hash": ""
+  },
+  "View/Contents/ServerControlUserControl.cs": {
+    "mtime": 1789196827.3577645,
+    "seen": 1792796430.7298524,
+    "ast_hash": "89d6c62c11fb75b34e9644f99487a5d5",
+    "semantic_hash": ""
+  },
+  "View/Contents/ShareMonitorUserControl.cs": {
+    "mtime": 1792746698.7606592,
+    "seen": 1792796430.7298536,
+    "ast_hash": "6fb26a20cd45fd4628126b8222392f77",
+    "semantic_hash": ""
+  },
+  "View/Dialogs/CreateCi4ProjectDialog.Designer.cs": {
+    "mtime": 1792472183.654509,
+    "seen": 1792796430.729855,
+    "ast_hash": "453b0d16b90d995eb1b58fb3a6f7313a",
+    "semantic_hash": ""
+  },
+  "View/Dialogs/CreateCi4ProjectDialog.cs": {
+    "mtime": 1792539126.0451305,
+    "seen": 1792796430.729856,
+    "ast_hash": "9df537a9d3060bc7bae3ca676d8dd9e4",
+    "semantic_hash": ""
+  },
+  "View/Dialogs/DatabaseCredentialsDialog.Designer.cs": {
+    "mtime": 1792546017.0301702,
+    "seen": 1792796430.7298572,
+    "ast_hash": "ac25b66a7f688320552d788fd608fba1",
+    "semantic_hash": ""
+  },
+  "View/Dialogs/DatabaseCredentialsDialog.cs": {
+    "mtime": 1792746877.3424542,
+    "seen": 1792796430.7298584,
+    "ast_hash": "b7e491e4b2201d58a4b487484c18c256",
+    "semantic_hash": ""
+  },
+  "View/LoginForm.Designer.cs": {
+    "mtime": 1788931689.2257466,
+    "seen": 1792796430.7298596,
+    "ast_hash": "3bff398a218e1596560fbb5b986e4715",
+    "semantic_hash": ""
+  },
+  "View/LoginForm.cs": {
+    "mtime": 1792746892.6801682,
+    "seen": 1792796430.7298605,
+    "ast_hash": "44573b9fb183eea91782da5c88ab0215",
+    "semantic_hash": ""
+  },
+  "View/Panel/DashboardPanel.Designer.cs": {
+    "mtime": 1792562691.3797865,
+    "seen": 1792796430.729862,
+    "ast_hash": "f7c638f4f0ee6f3022245456c56de805",
+    "semantic_hash": ""
+  },
+  "View/Panel/DashboardPanel.cs": {
+    "mtime": 1792746698.7606592,
+    "seen": 1792796430.7298632,
+    "ast_hash": "593ffdf55748e0f5c8c44bd4b982816a",
+    "semantic_hash": ""
+  },
+  ".github/copilot-instructions.md": {
+    "mtime": 1789183789.045626,
+    "seen": 1792796430.7298641,
+    "ast_hash": "1953f5a6e590a211329c8cff6f0fb3f3",
+    "semantic_hash": ""
+  },
+  "README.md": {
+    "mtime": 1789448882.4083147,
+    "seen": 1792796430.7298656,
+    "ast_hash": "26e03364467658dbc953b4f4a3e3d999",
+    "semantic_hash": ""
+  },
+  "_docs/ICM_CHANGELOG.md": {
+    "mtime": 1792796419.258212,
+    "seen": 1792796430.7298665,
+    "ast_hash": "55f323989915949ff2be815e6f34d184",
+    "semantic_hash": ""
+  },
+  "_docs/OBSIDIAN_CODEBASE_INDEX.md": {
+    "mtime": 1792796419.2322628,
+    "seen": 1792796430.7298675,
+    "ast_hash": "ac501a86e4462c4b0e6b7c4961a0e2d0",
+    "semantic_hash": ""
+  }
+}

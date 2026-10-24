@@ -1,12 +1,14 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Data;
 using System.Drawing;
+using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Forms;
+using Server_HTML_Handler.Services;
 using Server_HTML_Handler.View.Contents;
 
 namespace Server_HTML_Handler.View.Panel
@@ -19,15 +21,74 @@ namespace Server_HTML_Handler.View.Panel
         private readonly Color ActiveTextColor = Color.FromArgb(0, 229, 255);   // Cyan text for active tab
         private readonly Color InactiveTextColor = Color.FromArgb(200, 200, 200); // Muted light gray text for inactive tabs
 
+        private bool _isExplicitExit = false;
+        private Button btnShareMonitor;
+
         public DashboardPanel()
         {
             InitializeComponent();
+            SetupTrayIcon();
+            SetupShareMonitorButton();
+        }
+
+        private void SetupTrayIcon()
+        {
+            try
+            {
+                if (this.Icon != null)
+                {
+                    notifyIconServer.Icon = this.Icon;
+                }
+                else
+                {
+                    notifyIconServer.Icon = SystemIcons.Application;
+                }
+            }
+            catch
+            {
+                notifyIconServer.Icon = SystemIcons.Application;
+            }
+
+            CallSignalingService.OnServerStateChanged += HandleServerStateChanged;
+            UpdateTrayServerState(CallSignalingService.IsRunning);
         }
 
         private void DashboardPanel_Load(object sender, EventArgs e)
         {
+            // Auto-start Call Signaling Server on port 9000 if not yet started
+            if (!CallSignalingService.IsRunning)
+            {
+                CallSignalingService.Start(out _, 9000);
+            }
+
             // Load default view and set Dashboard button as active
             LoadUserControlSafely(() => new DashboardContents(), btnDashboard);
+        }
+
+        private void HandleServerStateChanged(bool isRunning)
+        {
+            if (InvokeRequired)
+            {
+                Invoke(new Action(() => HandleServerStateChanged(isRunning)));
+                return;
+            }
+            UpdateTrayServerState(isRunning);
+        }
+
+        private void UpdateTrayServerState(bool isRunning)
+        {
+            if (isRunning)
+            {
+                trayItemCallServer.Text = $"Call Server: RUNNING (Port {CallSignalingService.Port})";
+                trayItemCallServer.ForeColor = Color.DarkGreen;
+                notifyIconServer.Text = $"Server HTML Handler - Call Server Active ({CallSignalingService.Port})";
+            }
+            else
+            {
+                trayItemCallServer.Text = "Call Server: STOPPED (Click to Start)";
+                trayItemCallServer.ForeColor = Color.DarkRed;
+                notifyIconServer.Text = "Server HTML Handler (Call Server Inactive)";
+            }
         }
 
         /// <summary>
@@ -40,12 +101,13 @@ namespace Server_HTML_Handler.View.Panel
                 btnDashboard,
                 btnServerControl,
                 btnProjectViews,
-                btnCodeEditor,
-                btnConsole,
-                btnProjectViews,
+                btnCi4Creator,
                 btnCodeEditor,
                 btnConsole,
                 btnFullServerControl,
+                btnCallServer,
+                btnNotifications,
+                btnShareMonitor
             };
 
             foreach (var btn in navButtons)
@@ -73,101 +135,189 @@ namespace Server_HTML_Handler.View.Panel
         /// </summary>
         private void LoadUserControlSafely(Func<System.Windows.Forms.Control> controlFactory, Button sourceButton = null)
         {
-            System.Windows.Forms.Control newControl = null;
             try
             {
-                // Highlight sidebar active button state
+                Cursor = Cursors.WaitCursor;
+                pnlContent.SuspendLayout();
+
+                // Highlight corresponding sidebar button
                 if (sourceButton != null)
                 {
                     HighlightActiveButton(sourceButton);
                 }
 
-                // Instantiate the requested control
-                newControl = controlFactory();
-                if (newControl == null) return;
-
-                // Guard: Prevent reloading if the exact same control type is already active
-                if (pnlContent.Controls.Count > 0 && pnlContent.Controls[0].GetType() == newControl.GetType())
+                // Cleanly dispose and remove existing hosted controls
+                while (pnlContent.Controls.Count > 0)
                 {
-                    newControl.Dispose();
-                    return;
+                    Control oldControl = pnlContent.Controls[0];
+                    pnlContent.Controls.RemoveAt(0);
+                    oldControl.Dispose();
                 }
 
-                pnlContent.SuspendLayout();
+                // Instantiate new view instance
+                Control newControl = controlFactory();
 
-                // Safely dispose existing controls to free system resources and unbind listeners
-                foreach (System.Windows.Forms.Control existingCtrl in pnlContent.Controls)
+                if (newControl == null)
                 {
-                    existingCtrl.Dispose();
+                    throw new InvalidOperationException("Failed to load: Factory returned a null control reference.");
                 }
-                pnlContent.Controls.Clear();
 
-                // Force control to expand and fill pnlContent completely
-                newControl.Dock = System.Windows.Forms.DockStyle.Fill;
-                newControl.AutoSize = false;
-                newControl.Visible = true;
-
-                // Handle embedded Form instances if necessary
-                if (newControl is System.Windows.Forms.Form frm)
-                {
-                    frm.TopLevel = false;
-                    frm.FormBorderStyle = System.Windows.Forms.FormBorderStyle.None;
-                    frm.Show();
-                }
+                // Configure control layout inside host container
+                newControl.Dock = DockStyle.Fill;
+                newControl.BringToFront();
 
                 pnlContent.Controls.Add(newControl);
-                newControl.BringToFront();
-                pnlContent.ResumeLayout(true);
+                newControl.Focus();
             }
             catch (Exception ex)
             {
-                if (newControl != null && !newControl.IsDisposed)
-                {
-                    newControl.Dispose();
-                }
-
-                MessageBox.Show($"Failed to load view:\n{ex.Message}\n\nStack Trace:\n{ex.StackTrace}",
-                                "Navigation Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                MessageBox.Show(
+                    $"An error occurred while switching views:\n\n{ex.Message}",
+                    "Navigation Error",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Error
+                );
+            }
+            finally
+            {
+                pnlContent.ResumeLayout(true);
+                Cursor = Cursors.Default;
             }
         }
 
         // ==========================================
-        // Sidebar Navigation Button Handlers
+        // Sidebar Navigation Button Click Handlers
         // ==========================================
-
-        // 1. Dashboard Metrics Tab
         private void btnDashboard_Click(object sender, System.EventArgs e)
         {
             LoadUserControlSafely(() => new DashboardContents(), sender as Button);
         }
 
-        // 2. Server Control & Security Test Labs
         private void btnServerControl_Click(object sender, System.EventArgs e)
         {
             LoadUserControlSafely(() => new ServerControlUserControl(), sender as Button);
         }
 
-        // 3. HTML & CodeIgniter 4 Quick Views
         private void btnProjectViews_Click(object sender, System.EventArgs e)
         {
             LoadUserControlSafely(() => new ProjectViewUserControl(), sender as Button);
         }
 
-        // 4. Quick Code Editor
         private void btnCodeEditor_Click(object sender, System.EventArgs e)
         {
             LoadUserControlSafely(() => new CodeEditorUserControl(), sender as Button);
         }
 
-        // 5. CLI Console & Terminal Engine
         private void btnConsole_Click(object sender, System.EventArgs e)
         {
             LoadUserControlSafely(() => new ConsoleUserControl(), sender as Button);
         }
 
-        private void btnFileManager_Click(object sender, System.EventArgs e)
+        private void btnFullServerControl_Click(object sender, EventArgs e)
         {
-            LoadUserControlSafely(() => new ConsoleUserControl(), sender as Button);
+            LoadUserControlSafely(() => new ServerControlForm(), sender as Button);
+        }
+
+        private void btnCi4Creator_Click(object sender, EventArgs e)
+        {
+            HighlightActiveButton(btnCi4Creator);
+
+            string hostingPath = Properties.Settings.Default.HTMLPath;
+            if (string.IsNullOrWhiteSpace(hostingPath) || !System.IO.Directory.Exists(hostingPath))
+            {
+                hostingPath = @"D:\html";
+            }
+            string hostIp = Properties.Settings.Default.IP;
+            if (string.IsNullOrWhiteSpace(hostIp)) hostIp = "192.168.32.43";
+
+            using (var dlg = new Dialogs.CreateCi4ProjectDialog(hostingPath, hostIp))
+            {
+                if (dlg.ShowDialog(this) == DialogResult.OK || !string.IsNullOrEmpty(dlg.CreatedProjectPath))
+                {
+                    // Refresh project views if already loaded or navigate to project views
+                    LoadUserControlSafely(() => new ProjectViewUserControl(), btnProjectViews);
+                }
+            }
+        }
+
+        private void btnCallServer_Click(object sender, EventArgs e)
+        {
+            LoadUserControlSafely(() => new CallServerUserControl(), sender as Button);
+        }
+
+        // ==========================================
+        // Shared Folder Monitor (who is connected to the hosting folder)
+        // ==========================================
+        private const string ShareButtonText = "🖥 Folder Access";
+
+        private void SetupShareMonitorButton()
+        {
+            btnShareMonitor = new Button
+            {
+                Dock = DockStyle.Top,
+                FlatStyle = FlatStyle.Flat,
+                Font = btnNotifications.Font,
+                ForeColor = Color.FromArgb(0, 188, 212),
+                Size = btnNotifications.Size,
+                Margin = btnNotifications.Margin,
+                Name = "btnShareMonitor",
+                Text = ShareButtonText,
+                TextAlign = ContentAlignment.MiddleLeft,
+                UseVisualStyleBackColor = true
+            };
+            btnShareMonitor.FlatAppearance.BorderSize = 0;
+            btnShareMonitor.Click += btnShareMonitor_Click;
+            pnlSidebar.Controls.Add(btnShareMonitor);
+            // Docked-top buttons stack in reverse child order: index 1 puts this one right under "Live Notifications".
+            pnlSidebar.Controls.SetChildIndex(btnShareMonitor, 1);
+
+            var share = Services.ShareControlService.Instance;
+            string path = Properties.Settings.Default.HTMLPath;
+            share.FolderPath = string.IsNullOrWhiteSpace(path) ? @"D:\html" : path;
+            share.OnNewAccessRequest += HandleShareAccessRequest;
+            share.StartMonitor();
+        }
+
+        private void btnShareMonitor_Click(object sender, EventArgs e)
+        {
+            LoadUserControlSafely(() => new ShareMonitorUserControl(), sender as Button);
+            UpdateShareBadge();
+        }
+
+        private void HandleShareAccessRequest(Services.AccessRequestInfo r)
+        {
+            if (IsDisposed || !IsHandleCreated) return;
+            BeginInvoke(new Action(() =>
+            {
+                UpdateShareBadge();
+                string who = string.IsNullOrWhiteSpace(r.User) ? r.Ip : $"{r.User} ({r.Ip})";
+                notifyIconServer.BalloonTipTitle = "Folder access request";
+                notifyIconServer.BalloonTipText = r.Kind == "Access denied"
+                    ? $"{who} tried to open your hosting folder but has no permission.\nOpen Folder Access to allow Read / Write or block it."
+                    : $"{who} could not sign in to your hosting folder.\nOpen Folder Access to see the details.";
+                notifyIconServer.BalloonTipClicked -= ShareBalloonClicked;
+                notifyIconServer.BalloonTipClicked += ShareBalloonClicked;
+                notifyIconServer.ShowBalloonTip(10000);
+            }));
+        }
+
+        private void ShareBalloonClicked(object sender, EventArgs e)
+        {
+            notifyIconServer.BalloonTipClicked -= ShareBalloonClicked;
+            RestoreDashboard();
+            btnShareMonitor_Click(btnShareMonitor, EventArgs.Empty);
+        }
+
+        private void UpdateShareBadge()
+        {
+            int n = Services.ShareControlService.Instance.PendingRequests.Count;
+            btnShareMonitor.Text = n > 0 ? $"{ShareButtonText} ({n})" : ShareButtonText;
+            btnShareMonitor.ForeColor = n > 0 ? Color.FromArgb(255, 99, 71) : Color.FromArgb(0, 188, 212);
+        }
+
+        private void btnNotifications_Click(object sender, EventArgs e)
+        {
+            LoadUserControlSafely(() => new NotificationHubUserControl(), sender as Button);
         }
 
         // Optional / Auxiliary Button Handlers
@@ -186,9 +336,46 @@ namespace Server_HTML_Handler.View.Panel
             LoadUserControlSafely(() => new CodeEditorUserControl(), sender as Button);
         }
 
-        private void btnFullServerControl_Click(object sender, EventArgs e)
+        // ==========================================
+        // System Tray & Background Execution
+        // ==========================================
+        private void notifyIconServer_DoubleClick(object sender, EventArgs e)
         {
-            LoadUserControlSafely(() => new ServerControlForm(), sender as Button);
+            RestoreDashboard();
+        }
+
+        private void trayItemOpen_Click(object sender, EventArgs e)
+        {
+            RestoreDashboard();
+        }
+
+        private void RestoreDashboard()
+        {
+            this.Show();
+            this.WindowState = FormWindowState.Normal;
+            this.BringToFront();
+            this.Activate();
+        }
+
+        private void trayItemCallServer_Click(object sender, EventArgs e)
+        {
+            if (CallSignalingService.IsRunning)
+            {
+                CallSignalingService.Stop();
+            }
+            else
+            {
+                CallSignalingService.Start(out string err, 9000);
+            }
+        }
+
+        private void trayItemExit_Click(object sender, EventArgs e)
+        {
+            _isExplicitExit = true;
+            CallSignalingService.Stop();
+            notifyIconServer.Visible = false;
+            notifyIconServer.Dispose();
+            Application.Exit();
         }
 
         // ==========================================
@@ -197,23 +384,32 @@ namespace Server_HTML_Handler.View.Panel
         private void btnLogout_Click(object sender, System.EventArgs e)
         {
             this.Hide();
+            Helper.AppLoginStore.Forget();      // logging out also forgets "Remember me"
+            LoginForm.SkipAutoLogin = true;
             LoginForm login = new LoginForm();
             login.Show();
         }
 
         private void DashboardPanel_FormClosing(object sender, FormClosingEventArgs e)
         {
-            foreach (Form openForm in Application.OpenForms)
+            if (_isExplicitExit)
             {
-                if (openForm is LoginForm)
-                {
-                    openForm.Show();
-                    return;
-                }
+                return;
             }
 
-            LoginForm newLogin = new LoginForm();
-            newLogin.Show();
+            // If user closed the form or X button was clicked, minimize to system tray
+            if (e.CloseReason == CloseReason.UserClosing)
+            {
+                e.Cancel = true;
+                this.Hide();
+
+                notifyIconServer.BalloonTipTitle = "Server HTML Handler Active";
+                string serverStatus = CallSignalingService.IsRunning 
+                    ? $"Call Server is running on port {CallSignalingService.Port}." 
+                    : "Running in background.";
+                notifyIconServer.BalloonTipText = $"{serverStatus}\nDouble-click this tray icon or right-click to manage.";
+                notifyIconServer.ShowBalloonTip(2000);
+            }
         }
     }
 }
