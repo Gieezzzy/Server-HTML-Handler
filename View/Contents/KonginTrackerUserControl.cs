@@ -72,6 +72,25 @@ namespace Server_HTML_Handler.View.Contents
                 await RefreshDataAsync();
                 await LoadRecipientsAsync();
             };
+
+            // Immediate initial load in case Load event does not fire when dynamically hosted
+            try
+            {
+                numAlertInterval.Value = Math.Max(1, Math.Min(1440, _service.AlertIntervalMinutes));
+            }
+            catch { }
+            _ = RefreshDataAsync();
+            _ = LoadRecipientsAsync();
+        }
+
+        protected override void OnHandleCreated(EventArgs e)
+        {
+            base.OnHandleCreated(e);
+            if (!DesignMode)
+            {
+                _ = RefreshDataAsync();
+                _ = LoadRecipientsAsync();
+            }
         }
 
         private void InitializeComponent()
@@ -125,8 +144,7 @@ namespace Server_HTML_Handler.View.Contents
             lblTempStandard.Text = "Standard: 23 ± 2°C (21 - 25°C)";
 
             // Card 2: Humidity
-            this.cardHum = CreateCard("💧 Humidity", out lblHumTitle, out lblTempValue, out lblHumStandard, 310, Color.FromArgb(46, 204, 113));
-            lblHumValue = lblTempValue; // reference
+            this.cardHum = CreateCard("💧 Humidity", out lblHumTitle, out lblHumValue, out lblHumStandard, 310, Color.FromArgb(46, 204, 113));
             lblHumStandard.Text = "Standard: 55 ± 10% (45 - 65%)";
 
             // Card 3: Alert Status
@@ -493,6 +511,12 @@ namespace Server_HTML_Handler.View.Contents
 
         public async Task RefreshDataAsync()
         {
+            if (InvokeRequired)
+            {
+                BeginInvoke(new Func<Task>(RefreshDataAsync));
+                return;
+            }
+
             try
             {
                 Cursor = Cursors.WaitCursor;
@@ -502,10 +526,16 @@ namespace Server_HTML_Handler.View.Contents
                 var recents = await _service.GetRecentReadingsAsync(100);
                 dgvReadings.DataSource = null;
                 dgvReadings.DataSource = recents;
+                if (recents == null || recents.Count == 0)
+                {
+                    lblStatusSub.Text = "No readings returned from database.";
+                }
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Error loading Kongin readings: {ex.Message}", "Sensor Read Error", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                lblStatusValue.Text = "ERR";
+                lblStatusValue.ForeColor = Color.FromArgb(231, 76, 60);
+                lblStatusSub.Text = ex.Message;
             }
             finally
             {
