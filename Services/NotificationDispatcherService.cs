@@ -28,6 +28,7 @@ namespace Server_HTML_Handler.Services
         public bool FcmSent { get; set; }
         public bool WebSocketSent { get; set; }
         public string DeliveryStatus { get; set; }
+        public string TargetSystem { get; set; } = "RMS";
         public string DisplayTime => Timestamp.ToString("HH:mm:ss");
     }
 
@@ -754,8 +755,15 @@ namespace Server_HTML_Handler.Services
         #region Dispatcher & Multi-Channel Delivery
 
         public async Task<NotificationLogItem> DispatchNotificationAsync(
-            string category, string priority, string title, string code, string name, string details, string actionLink = "STOCK_ALERT")
+            string category, string priority, string title, string code, string name, string details, string actionLink = "STOCK_ALERT", string targetSystem = "RMS")
         {
+            if (string.Equals(category, "Environment Alert", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(code, TypeEnvironmentAlert, StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(actionLink, "KONGIN_TRACKER", StringComparison.OrdinalIgnoreCase))
+            {
+                targetSystem = "NEXUS";
+            }
+
             var logItem = new NotificationLogItem
             {
                 Category = category,
@@ -763,7 +771,8 @@ namespace Server_HTML_Handler.Services
                 Title = title,
                 ItemCode = code,
                 ItemName = name,
-                Details = details
+                Details = details,
+                TargetSystem = targetSystem
             };
 
             // Who receives this type of notification comes from dbRMSAndroid.tbl_NotificationCategory.
@@ -772,14 +781,14 @@ namespace Server_HTML_Handler.Services
             List<string> recipients = await GetRecipientsAsync(notifType);
             if (recipients.Count == 0)
             {
-                Log($"[{category}] No recipients configured for '{notifType}' in tbl_NotificationCategory - phone/Synology delivery skipped.");
+                Log($"[{category}] [{targetSystem}] No recipients configured for '{notifType}' in tbl_NotificationCategory - phone/Synology delivery skipped.");
             }
 
             // 1. Channel A: Send to Firebase & Synology via send-notification.php
             if (recipients.Count > 0)
             try
             {
-                using (var client = new HttpClient { Timeout = TimeSpan.FromSeconds(8) })
+                using (var client = new HttpClient { Timeout = TimeSpan.FromSeconds(30) })
                 {
                     var postContent = new FormUrlEncodedContent(new[]
                     {
@@ -788,8 +797,9 @@ namespace Server_HTML_Handler.Services
                         new KeyValuePair<string, string>("priority_level", priority),
                         new KeyValuePair<string, string>("details", details),
                         new KeyValuePair<string, string>("username", "System"),
-                        new KeyValuePair<string, string>("initiator_name", "Server Manager"),
-                        new KeyValuePair<string, string>("action_link", actionLink)
+                        new KeyValuePair<string, string>("initiator_name", targetSystem == "NEXUS" ? "Kongin Environmental Tracker" : "Server Manager"),
+                        new KeyValuePair<string, string>("action_link", actionLink),
+                        new KeyValuePair<string, string>("target_system", targetSystem)
                     });
 
                     var response = await client.PostAsync(NotificationPhpUrl, postContent);
@@ -798,6 +808,11 @@ namespace Server_HTML_Handler.Services
                         string body = await response.Content.ReadAsStringAsync();
                         logItem.FcmSent = true;
                         logItem.SynologySent = true;
+                    }
+                    else
+                    {
+                        string errBody = await response.Content.ReadAsStringAsync();
+                        Log($"PHP / FCM Dispatch HTTP {(int)response.StatusCode}: {errBody}");
                     }
                 }
             }
@@ -842,6 +857,7 @@ namespace Server_HTML_Handler.Services
                 var wsPayload = new JObject
                 {
                     ["type"] = "SYSTEM_NOTIFICATION",
+                    ["system"] = targetSystem,
                     ["category"] = category,
                     ["priority"] = priority,
                     ["title"] = title,
@@ -1217,10 +1233,18 @@ namespace Server_HTML_Handler.Services
                 using (var conn = new SqlConnection(RmsConnectionString))
                 {
                     await conn.OpenAsync();
-                    // If asking for a specific category, include global ALL recipients automatically
-                    string query = string.Equals(notifType, TypeAll, StringComparison.OrdinalIgnoreCase)
-                        ? "SELECT ToChatSynolofyID FROM dbo.tbl_NotificationCategory WHERE NotifType = @t"
-                        : "SELECT ToChatSynolofyID FROM dbo.tbl_NotificationCategory WHERE NotifType = @t OR NotifType = 'ALL'";
+                    // If asking for a specific RMS category, include global ALL recipients automatically.
+                    // Environment Alert is strictly for NEXUS and must NOT inherit RMS ALL recipients!
+                    string query;
+                    if (string.Equals(notifType, TypeAll, StringComparison.OrdinalIgnoreCase) ||
+                        string.Equals(notifType, TypeEnvironmentAlert, StringComparison.OrdinalIgnoreCase))
+                    {
+                        query = "SELECT ToChatSynolofyID FROM dbo.tbl_NotificationCategory WHERE NotifType = @t";
+                    }
+                    else
+                    {
+                        query = "SELECT ToChatSynolofyID FROM dbo.tbl_NotificationCategory WHERE NotifType = @t OR NotifType = 'ALL'";
+                    }
                     using (var cmd = new SqlCommand(query, conn))
                     {
                         cmd.Parameters.AddWithValue("@t", notifType);
@@ -1274,7 +1298,6 @@ namespace Server_HTML_Handler.Services
             new NotificationCategoryInfo { NotifType = TypeLowStock, Label = "Low Stock Warning", Description = "Items at or below the stock threshold. Two digests per day (from 07:00 and from 13:00, only while 07:00-17:00) while unresolved." },
             new NotificationCategoryInfo { NotifType = TypeLabQuality, Label = "Lab Quality 48hr Lapse", Description = "Pallets with TS2 / TC90 / chemical results still missing after 48 hours. One digest per day while unresolved." },
             new NotificationCategoryInfo { NotifType = TypeColorExpiry, Label = "Color Expiration", Description = "Approved library colors valid from their EnteredDate for 6 months (dark) or 2 months (light, by Hex / color name). Listed from 14 days before expiry. One digest per day." },
-                        new NotificationCategoryInfo { NotifType = TypeEnvironmentAlert, Label = "Environment Alert (Kongin Temp/Humidity)", Description = "Alerts when QC lab temperature (< 21Â°C or > 25Â°C) or humidity (< 45% or > 65%) is outside standard range. Sent hourly while out-of-range.", DefaultPriority = "HIGH" },
             new NotificationCategoryInfo { NotifType = "SYSTEM_TEST", Label = "System Test (Send test button)", Description = "Only used by the Send Test button. Sent immediately.", DefaultPriority = "NORMAL" },
         };
 

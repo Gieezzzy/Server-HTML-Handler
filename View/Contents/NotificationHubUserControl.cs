@@ -589,7 +589,10 @@ namespace Server_HTML_Handler.View.Contents
 
         private void RefreshHistoryGrid()
         {
-            var history = _service.GetHistory();
+            var history = _service.GetHistory()
+                .Where(x => !string.Equals(x.TargetSystem, "NEXUS", StringComparison.OrdinalIgnoreCase) &&
+                            !string.Equals(x.Category, "Environment Alert", StringComparison.OrdinalIgnoreCase))
+                .ToList();
             dgvFeed.DataSource = null;
             dgvFeed.DataSource = history;
         }

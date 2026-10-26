@@ -294,7 +294,8 @@ namespace Server_HTML_Handler.Services
                 CategoryEnvironmentAlert,
                 "Environment Alert",
                 details,
-                "KONGIN_TRACKER"
+                "KONGIN_TRACKER",
+                "NEXUS"
             );
         }
     }
