@@ -512,7 +512,7 @@ namespace Server_HTML_Handler.Services
 
                                 string dateStr = inbDate.HasValue ? inbDate.Value.ToString("yyyy-MM-dd HH:mm") : DateTime.Now.ToString("yyyy-MM-dd HH:mm");
 
-                                QueueInbound("MATERIAL_INBOUND", $"â€¢ {dateStr} | {code} {name} ({matType}/{cat}) | {qty:N2} KG/KL | Batch {batch} | Container {container} | by {createdBy}");
+                                QueueInbound("MATERIAL_INBOUND", $"\u2022 {dateStr} | {code} {name} ({matType}/{cat}) | {qty:N2} KG/KL | Batch {batch} | Container {container} | by {createdBy}");
                             }
                         }
                     }
@@ -546,7 +546,7 @@ namespace Server_HTML_Handler.Services
 
                                 string dateStr = inbDate.HasValue ? inbDate.Value.ToString("yyyy-MM-dd") : DateTime.Now.ToString("yyyy-MM-dd");
 
-                                QueueInbound("PIGMENT_INBOUND", $"â€¢ {dateStr} | {code} {name} ({conc}) | {qty:N2} g/KG | Batch {batch} | Container {container} | by {createdBy}");
+                                QueueInbound("PIGMENT_INBOUND", $"\u2022 {dateStr} | {code} {name} ({conc}) | {qty:N2} g/KG | Batch {batch} | Container {container} | by {createdBy}");
                             }
                         }
                     }
@@ -579,7 +579,7 @@ namespace Server_HTML_Handler.Services
 
                                 string dateStr = inbDate.HasValue ? inbDate.Value.ToString("yyyy-MM-dd") : DateTime.Now.ToString("yyyy-MM-dd");
 
-                                QueueInbound("CHEMICAL_INBOUND", $"â€¢ {dateStr} | {code} {name} | {qty:N2} KG | Batch {batch} | Container {container} | by {createdBy}");
+                                QueueInbound("CHEMICAL_INBOUND", $"\u2022 {dateStr} | {code} {name} | {qty:N2} KG | Batch {batch} | Container {container} | by {createdBy}");
                             }
                         }
                     }
@@ -1584,8 +1584,8 @@ namespace Server_HTML_Handler.Services
                 title = $"Daily Low Stock Summary ({itemCount})";
                 header = $"[DAILY LOW STOCK SUMMARY - {itemCount} ITEM(S) AT OR BELOW {StockThresholdPct:F0}%]";
                 foreach (var i in items.Take(max))
-                    lines.Add($"â€¢ {i.Type} | {i.Code} {i.Name} | {i.CurrentStock:N2} {i.Unit} of {i.BaselineStock:N2} ({i.Percentage:F1}%)");
-                footer = "âš ï¸ Inventory replenishment is required.";
+                    lines.Add($"\u2022 {i.Type} | {i.Code} {i.Name} | {i.CurrentStock:N2} {i.Unit} of {i.BaselineStock:N2} ({i.Percentage:F1}%)");
+                footer = "\u26A0\uFE0F Inventory replenishment is required.";
             }
             else if (notifType == TypeColorExpiry)
             {
@@ -1598,8 +1598,8 @@ namespace Server_HTML_Handler.Services
                 title = $"Color Expiration Notice ({itemCount})";
                 header = $"[COLOR EXPIRATION - {itemCount} COLOR(S) EXPIRING SOON OR JUST EXPIRED (valid from the entered date: dark {DarkColorLifeMonths} months, light {LightColorLifeMonths} months)]";
                 foreach (var i in items.Take(max))
-                    lines.Add($"â€¢ {i.ColorCode} {i.ColorName} | {i.Tone} ({i.Basis}) | entered {i.EnteredDate:yyyy-MM-dd} â†’ expires {i.ExpiryDate:yyyy-MM-dd} ({i.WhenText})");
-                footer = (older > 0 ? $"({older} older expired color(s) not listed.)\n" : "") + "âš ï¸ Please renew or replace these colors before/after they expire.";
+                    lines.Add($"\u2022 {i.ColorCode} {i.ColorName} | {i.Tone} ({i.Basis}) | entered {i.EnteredDate:yyyy-MM-dd} \u2192 expires {i.ExpiryDate:yyyy-MM-dd} ({i.WhenText})");
+                footer = (older > 0 ? $"({older} older expired color(s) not listed.)\n" : "") + "\u26A0\uFE0F Please renew or replace these colors before/after they expire.";
             }
             else if (notifType == TypeLabQuality)
             {
@@ -1611,8 +1611,8 @@ namespace Server_HTML_Handler.Services
                 title = $"48h Lab Testing Overdue ({itemCount})";
                 header = $"[48-HOUR LAB TESTING OVERDUE - {itemCount} PALLET(S)]";
                 foreach (var i in items.Take(max))
-                    lines.Add($"â€¢ Pallet {i.PalletId} | Batch {i.BatchTrackingNo} | {i.MaterialName} ({i.MaterialCode}) | {i.DisplayHoursLapsed} lapsed | Missing: {i.MissingSummary}");
-                footer = "âš ï¸ TS2, TC90 and chemical results are still missing. Please enter them.";
+                    lines.Add($"\u2022 Pallet {i.PalletId} | Batch {i.BatchTrackingNo} | {i.MaterialName} ({i.MaterialCode}) | {i.DisplayHoursLapsed} lapsed | Missing: {i.MissingSummary}");
+                footer = "\u26A0\uFE0F TS2, TC90 and chemical results are still missing. Please enter them.";
             }
             else
             {
@@ -1626,13 +1626,13 @@ namespace Server_HTML_Handler.Services
                 title = $"New {kind} Inbound ({itemCount})";
                 header = $"[NEW {kind.ToUpperInvariant()} INBOUND - {itemCount} RECEIVED - FIFO REQUIRED]";
                 lines.AddRange(pending.Take(max));
-                footer = "âš ï¸ FIFO NOTICE: First-In, First-Out rotation required!";
+                footer = "\u26A0\uFE0F FIFO NOTICE: First-In, First-Out rotation required!";
             }
 
             var sb = new StringBuilder();
             sb.AppendLine(header);
             foreach (string l in lines) sb.AppendLine(l);
-            if (itemCount > lines.Count) sb.AppendLine($"â€¦and {itemCount - lines.Count} more {Plural(itemCount - lines.Count, "item", "items")} (see the Notification Hub).");
+            if (itemCount > lines.Count) sb.AppendLine($"\u2026 and {itemCount - lines.Count} more {Plural(itemCount - lines.Count, "item", "items")} (see the Notification Hub).");
             sb.Append(footer);
             return sb.ToString();
         }
