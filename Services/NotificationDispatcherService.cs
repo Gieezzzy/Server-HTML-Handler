@@ -821,7 +821,17 @@ namespace Server_HTML_Handler.Services
                     {
                         string body = await response.Content.ReadAsStringAsync();
                         logItem.FcmSent = true;
-                        logItem.SynologySent = true;
+                        try
+                        {
+                            var parsed = JObject.Parse(body);
+                            int synCount = parsed["synology_sent_count"]?.Value<int>() ?? 0;
+                            logItem.SynologySent = synCount > 0;
+                            Log($"[{category}] [{targetSystem}] Synology delivery: {synCount}/{recipients.Count} recipient(s) confirmed.");
+                        }
+                        catch
+                        {
+                            logItem.SynologySent = true;
+                        }
                     }
                     else
                     {
