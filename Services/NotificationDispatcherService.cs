@@ -204,8 +204,17 @@ namespace Server_HTML_Handler.Services
 
         public string NotificationPhpUrl { get; set; } = "http://192.168.32.43/send-notification.php";
 
-        public string SynologyBotUrl { get; set; } =
+        public string SynologyBotUrlRms { get; set; } =
+            "https://192.168.32.130:5001/webapi/entry.cgi?api=SYNO.Chat.External&method=chatbot&version=2&token=%220GmgVlE4ZZ9h9uCoGt7zSlszyCNXKtLH1bJnFs2RN9XbaN9HwHK6rnsUn5AHtNQo%22";
+
+        public string SynologyBotUrlNexus { get; set; } =
             "https://192.168.32.130:5001/webapi/entry.cgi?api=SYNO.Chat.External&method=chatbot&version=2&token=%22cEiE4qHlTZI8GSboOTS9LOTcYJGq4bgZaAC51vd4lUUXedHUobUAV8nZa3qMPfFn%22";
+
+        public string SynologyBotUrl
+        {
+            get => SynologyBotUrlRms;
+            set => SynologyBotUrlRms = value;
+        }
 
         public double StockThresholdPct { get; set; } = 30.0;
         public int PollIntervalSeconds { get; set; } = 15;
@@ -790,6 +799,10 @@ namespace Server_HTML_Handler.Services
             {
                 using (var client = new HttpClient { Timeout = TimeSpan.FromSeconds(30) })
                 {
+                    string targetBotUrl = string.Equals(targetSystem, "NEXUS", StringComparison.OrdinalIgnoreCase)
+                        ? SynologyBotUrlNexus
+                        : SynologyBotUrlRms;
+
                     var postContent = new FormUrlEncodedContent(new[]
                     {
                         new KeyValuePair<string, string>("synology_ids", string.Join(";", recipients)),
@@ -799,7 +812,8 @@ namespace Server_HTML_Handler.Services
                         new KeyValuePair<string, string>("username", "System"),
                         new KeyValuePair<string, string>("initiator_name", targetSystem == "NEXUS" ? "Kongin Environmental Tracker" : "Server Manager"),
                         new KeyValuePair<string, string>("action_link", actionLink),
-                        new KeyValuePair<string, string>("target_system", targetSystem)
+                        new KeyValuePair<string, string>("target_system", targetSystem),
+                        new KeyValuePair<string, string>("synology_bot_url", targetBotUrl)
                     });
 
                     var response = await client.PostAsync(NotificationPhpUrl, postContent);
@@ -822,7 +836,11 @@ namespace Server_HTML_Handler.Services
             }
 
             // 2. Channel B: Direct Synology Webhook Fallback if PHP failed (still only to the configured recipients)
-            if (recipients.Count > 0 && !logItem.SynologySent && !string.IsNullOrWhiteSpace(SynologyBotUrl))
+            string directBotUrl = string.Equals(targetSystem, "NEXUS", StringComparison.OrdinalIgnoreCase)
+                ? SynologyBotUrlNexus
+                : SynologyBotUrlRms;
+
+            if (recipients.Count > 0 && !logItem.SynologySent && !string.IsNullOrWhiteSpace(directBotUrl))
             {
                 try
                 {
@@ -838,7 +856,7 @@ namespace Server_HTML_Handler.Services
                                 new KeyValuePair<string, string>("payload", jsonPayload)
                             });
 
-                            var resp = await client.PostAsync(SynologyBotUrl, formContent);
+                            var resp = await client.PostAsync(directBotUrl, formContent);
                             if (resp.IsSuccessStatusCode) anyOk = true;
                         }
 

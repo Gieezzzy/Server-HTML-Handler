@@ -504,7 +504,7 @@ namespace Server_HTML_Handler.View.Contents
         {
             txtSqlConn.Text = _service.SqlConnectionString;
             txtPhpUrl.Text = _service.NotificationPhpUrl;
-            txtSynologyUrl.Text = _service.SynologyBotUrl;
+            txtSynologyUrl.Text = _service.SynologyBotUrlRms;
             numThreshold.Value = (decimal)_service.StockThresholdPct;
             numInterval.Value = _service.PollIntervalSeconds;
         }
@@ -747,7 +747,7 @@ namespace Server_HTML_Handler.View.Contents
             {
                 _service.SqlConnectionString = txtSqlConn.Text.Trim();
                 _service.NotificationPhpUrl = txtPhpUrl.Text.Trim();
-                _service.SynologyBotUrl = txtSynologyUrl.Text.Trim();
+                _service.SynologyBotUrlRms = txtSynologyUrl.Text.Trim();
                 _service.StockThresholdPct = (double)numThreshold.Value;
                 _service.PollIntervalSeconds = (int)numInterval.Value;
 

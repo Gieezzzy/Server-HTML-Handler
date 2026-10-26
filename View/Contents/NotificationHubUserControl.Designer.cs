@@ -905,7 +905,7 @@ namespace Server_HTML_Handler.View.Contents
             this.lblSynologyUrl.Name = "lblSynologyUrl";
             this.lblSynologyUrl.Size = new System.Drawing.Size(193, 13);
             this.lblSynologyUrl.TabIndex = 2;
-            this.lblSynologyUrl.Text = "Synology Chat External Bot Webhook:";
+            this.lblSynologyUrl.Text = "Synology Chat External Bot Webhook (RMS):";
             // 
             // txtPhpUrl
             // 
