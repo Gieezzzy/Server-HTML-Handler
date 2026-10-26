@@ -32,7 +32,7 @@
     <UpdateUrl>\\192.168.32.43\Deployed\Web Hosting Handler\</UpdateUrl>
     <ProductName>Server Management System</ProductName>
     <PublisherName>Eigeman Go</PublisherName>
-    <ApplicationRevision>22</ApplicationRevision>
+    <ApplicationRevision>23</ApplicationRevision>
     <ApplicationVersion>1.0.0.%2a</ApplicationVersion>
     <UseApplicationTrust>false</UseApplicationTrust>
     <CreateDesktopShortcut>true</CreateDesktopShortcut>
