@@ -395,19 +395,30 @@ namespace Server_HTML_Handler.Services
             foreach (string file in Directory.GetFiles(sourceDir))
             {
                 string targetFilePath = Path.Combine(destinationDir, Path.GetFileName(file));
-                File.Copy(file, targetFilePath, true);
+                try
+                {
+                    File.Copy(file, targetFilePath, true);
+                }
+                catch (FileNotFoundException) { } // File removed by another process after enumeration
+                catch (DirectoryNotFoundException) { }
             }
 
             foreach (string subDir in Directory.GetDirectories(sourceDir))
             {
                 string dirName = Path.GetFileName(subDir);
-                if (dirName.Equals("Developing", StringComparison.OrdinalIgnoreCase) || dirName.Equals(".git", StringComparison.OrdinalIgnoreCase))
+                if (dirName.Equals("Developing", StringComparison.OrdinalIgnoreCase) ||
+                    dirName.Equals(".git", StringComparison.OrdinalIgnoreCase) ||
+                    dirName.Equals("graphify-out", StringComparison.OrdinalIgnoreCase))
                 {
                     continue;
                 }
 
                 string newDestinationDir = Path.Combine(destinationDir, dirName);
-                CopyDirectoryRecursiveExcludingDeveloping(subDir, newDestinationDir);
+                try
+                {
+                    CopyDirectoryRecursiveExcludingDeveloping(subDir, newDestinationDir);
+                }
+                catch (DirectoryNotFoundException) { } // Folder removed by another process after enumeration
             }
         }
 
