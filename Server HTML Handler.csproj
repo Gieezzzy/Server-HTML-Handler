@@ -32,7 +32,7 @@
     <UpdateUrl>\\192.168.32.43\Deployed\Web Hosting Handler\</UpdateUrl>
     <ProductName>Server Management System</ProductName>
     <PublisherName>Eigeman Go</PublisherName>
-    <ApplicationRevision>24</ApplicationRevision>
+    <ApplicationRevision>25</ApplicationRevision>
     <ApplicationVersion>1.0.0.%2a</ApplicationVersion>
     <UseApplicationTrust>false</UseApplicationTrust>
     <CreateDesktopShortcut>true</CreateDesktopShortcut>
@@ -301,6 +301,7 @@
       <DependentUpon>ServerControlForm.cs</DependentUpon>
     </Compile>
     <Compile Include="Services\DeploymentStagingService.cs" />
+    <Compile Include="Services\ThreeWayMerge.cs" />
     <Compile Include="Services\CallSignalingService.cs" />
     <Compile Include="Helper\AppLoginStore.cs" />
     <Compile Include="Services\ApacheWatchdogService.cs" />

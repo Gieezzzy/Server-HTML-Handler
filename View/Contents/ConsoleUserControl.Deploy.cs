@@ -166,17 +166,19 @@ namespace Server_HTML_Handler.View.Contents
             AppendConsole("==================================================================", Color.Cyan);
             AppendConsole("1. WORKSPACE STRUCTURE ON DISK:", Color.White);
             AppendConsole("   D:\\html\\Developing\\<project_name>\\<dev_tag>-<name>\\", Color.Gray);
-            AppendConsole("      ├── Update/    <- Put ONLY modified or newly created files here", Color.Gray);
-            AppendConsole("      └── Private/   <- Developer's full private test copy of the site", Color.Gray);
+            AppendConsole("      ├── Update/    <- Modified/new files, or the developer's WHOLE project", Color.Gray);
+            AppendConsole("      ├── Private/   <- Developer's full private test copy of the site", Color.Gray);
+            AppendConsole("      ├── Base/      <- Untouched snapshot of live taken at sync (merge base)", Color.Gray);
+            AppendConsole("      └── Conflicts/ <- Files where live and developer changed the same lines", Color.Gray);
             AppendConsole("", Color.White);
             AppendConsole("2. STEP-BY-STEP WORKFLOW:", Color.White);
             AppendConsole("   Step 1: deploy list                  (See all projects in D:\\html)", Color.Lime);
             AppendConsole("   Step 2: deploy select NEXUS-L        (Select active project)", Color.Lime);
             AppendConsole("   Step 3: deploy init Dev1-Marc        (Creates Developing\\NEXUS-L\\Dev1-Marc\\{Update,Private})", Color.Lime);
-            AppendConsole("   Step 4: deploy sync-private Dev1-Marc(Copies current live project to Private/)", Color.Lime);
+            AppendConsole("   Step 4: deploy sync-private Dev1-Marc(Copies live to Private/ and snapshots it to Base/)", Color.Lime);
             AppendConsole("   Step 5: [Developer works in Private, puts finished files into Update/ folder]", Color.Yellow);
-            AppendConsole("   Step 6: deploy check Dev1-Marc       (Checks PHP syntax & lists modified files)", Color.Lime);
-            AppendConsole("   Step 7: deploy merge Dev1-Marc       (Takes automated ZIP backup & merges to live)", Color.Lime);
+            AppendConsole("   Step 6: deploy check Dev1-Marc       (Previews NEW / MERGE / CONFLICT per file, PHP lint)", Color.Lime);
+            AppendConsole("   Step 7: deploy merge Dev1-Marc       (ZIP backup, then applies ONLY the developer's changed lines)", Color.Lime);
             AppendConsole("   Step 8: deploy rollback              (If bug found, restores previous version in 2s)", Color.Lime);
             AppendConsole("==================================================================", Color.Cyan);
         }

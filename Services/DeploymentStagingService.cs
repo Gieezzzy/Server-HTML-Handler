@@ -79,7 +79,8 @@ namespace Server_HTML_Handler.Services
                 {
                     string info = $"DEVELOPER WORKSPACE [{devTag}] - Project [{_selectedProject}]\r\n"
                                 + "========================================================================\r\n"
-                                + "1. Put ONLY modified or new files here with their relative directory structure.\r\n"
+                                + "1. Put modified or new files here with their relative directory structure\r\n"
+                                + "   (uploading the whole project is fine: only the lines you changed are merged).\r\n"
                                 + "   Example:\r\n"
                                 + "      Update\\app\\Controllers\\Auth.php\r\n"
                                 + "      Update\\app\\Views\\auth\\login.php\r\n\r\n"
@@ -115,6 +116,307 @@ namespace Server_HTML_Handler.Services
                 .ToList();
         }
 
+        #region Line-Level Merge Planning
+
+        // Never merged from a developer upload: environment config, runtime data and generated/tool output
+        private static readonly HashSet<string> ProtectedDirNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+            "Developing", ".git", "graphify-out", "writable", "node_modules"
+        };
+
+        private static readonly HashSet<string> ProtectedRootFiles = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+            ".env"
+        };
+
+        private enum MergeAction
+        {
+            New,        // File does not exist on live: copied as-is
+            Merged,     // Developer's changed lines applied into the live file
+            Resolved,   // Conflict resolved manually via the Conflicts folder
+            Unchanged,  // Developer's file matches live, or the developer did not change it
+            Protected,  // Skipped by policy (.env, writable/, node_modules/, ...)
+            Conflict    // Developer and live changed the same lines differently
+        }
+
+        private class FileMergePlan
+        {
+            public string RelPath;
+            public string SourceFile;
+            public MergeAction Action;
+            public byte[] Output;
+            public int DevChanges;
+            public int LiveChangesKept;
+            public string Note = "";
+        }
+
+        private static string GetDevDir(string devTag) => Path.Combine(GetDevelopingPath(), _selectedProject, devTag);
+
+        private static bool IsProtected(string relPath)
+        {
+            var segments = relPath.Split(new[] { '\\', '/' }, StringSplitOptions.RemoveEmptyEntries);
+            if (segments.Length == 1 && ProtectedRootFiles.Contains(segments[0])) return true;
+            return segments.Take(segments.Length - 1).Any(s => ProtectedDirNames.Contains(s));
+        }
+
+        private static bool BytesEqual(byte[] a, byte[] b)
+        {
+            if (a.Length != b.Length) return false;
+            for (int i = 0; i < a.Length; i++)
+            {
+                if (a[i] != b[i]) return false;
+            }
+            return true;
+        }
+
+        private static byte[] ReadIfExists(string path) => File.Exists(path) ? File.ReadAllBytes(path) : null;
+
+        /// <summary>
+        /// Works out, file by file, what merging the developer's Update folder into live would do.
+        /// Uses the developer's Base snapshot (live at sync time) as the common ancestor; falls back to Private.
+        /// </summary>
+        private static List<FileMergePlan> BuildMergePlan(string devTag, Action<string, Color> logger, out string baseRoot)
+        {
+            string devDir = GetDevDir(devTag);
+            string updateDir = Path.Combine(devDir, "Update");
+            string conflictsDir = Path.Combine(devDir, "Conflicts");
+            string liveProjDir = Path.Combine(GetHostingPath(), _selectedProject);
+
+            baseRoot = Path.Combine(devDir, "Base");
+            if (!Directory.Exists(baseRoot))
+            {
+                string privateDir = Path.Combine(devDir, "Private");
+                if (Directory.Exists(privateDir) && Directory.EnumerateFileSystemEntries(privateDir).Any())
+                {
+                    logger($"[WARN] No Base snapshot for '{devTag}'. Using Private\\ as the merge base (assumes it was not edited).", Color.Orange);
+                    baseRoot = privateDir;
+                }
+                else
+                {
+                    logger($"[WARN] No Base or Private snapshot for '{devTag}'. Every changed existing file will be reported as a conflict.", Color.Orange);
+                    baseRoot = null;
+                }
+            }
+
+            var plans = new List<FileMergePlan>();
+            var files = Directory.GetFiles(updateDir, "*.*", SearchOption.AllDirectories)
+                .Where(f => !Path.GetFileName(f).StartsWith("README_INSTRUCTIONS"));
+
+            foreach (var file in files)
+            {
+                string relPath = file.Substring(updateDir.Length).TrimStart('\\', '/');
+                var plan = new FileMergePlan { RelPath = relPath, SourceFile = file };
+                plans.Add(plan);
+
+                if (IsProtected(relPath))
+                {
+                    plan.Action = MergeAction.Protected;
+                    continue;
+                }
+
+                byte[] dev = File.ReadAllBytes(file);
+                byte[] live = ReadIfExists(Path.Combine(liveProjDir, relPath));
+                byte[] baseBytes = baseRoot == null ? null : ReadIfExists(Path.Combine(baseRoot, relPath));
+
+                PlanFile(plan, dev, live, baseBytes, devTag);
+
+                if (plan.Action == MergeAction.Conflict)
+                {
+                    ApplyManualResolution(plan, Path.Combine(conflictsDir, relPath));
+                }
+            }
+
+            return plans;
+        }
+
+        private static void PlanFile(FileMergePlan plan, byte[] dev, byte[] live, byte[] baseBytes, string devTag)
+        {
+            if (live == null)
+            {
+                if (baseBytes == null)
+                {
+                    plan.Action = MergeAction.New;
+                    plan.Output = dev;
+                }
+                else if (BytesEqual(dev, baseBytes))
+                {
+                    plan.Action = MergeAction.Unchanged;
+                    plan.Note = "deleted on live since sync; developer did not change it, not restored";
+                }
+                else
+                {
+                    plan.Action = MergeAction.Conflict;
+                    plan.Note = "deleted on live since sync, but changed by developer";
+                }
+                return;
+            }
+
+            if (BytesEqual(dev, live))
+            {
+                plan.Action = MergeAction.Unchanged;
+                return;
+            }
+
+            var devText = ThreeWayMerge.TryParseText(dev);
+            var liveText = ThreeWayMerge.TryParseText(live);
+            var baseText = baseBytes == null ? null : ThreeWayMerge.TryParseText(baseBytes);
+
+            if (devText != null && liveText != null && ThreeWayMerge.SameLines(devText.Lines, liveText.Lines))
+            {
+                plan.Action = MergeAction.Unchanged; // Only line endings / BOM differ
+                return;
+            }
+
+            if (baseBytes == null)
+            {
+                plan.Action = MergeAction.Conflict;
+                plan.Note = "exists on live but not in the base snapshot, so the developer's changes cannot be isolated";
+                return;
+            }
+
+            if (devText == null || liveText == null || baseText == null)
+            {
+                // Binary (images, fonts, archives): whole-file decision
+                if (BytesEqual(baseBytes, live))
+                {
+                    plan.Action = MergeAction.Merged;
+                    plan.Output = dev;
+                    plan.DevChanges = 1;
+                    plan.Note = "binary file replaced";
+                }
+                else if (BytesEqual(baseBytes, dev))
+                {
+                    plan.Action = MergeAction.Unchanged;
+                }
+                else
+                {
+                    plan.Action = MergeAction.Conflict;
+                    plan.Note = "binary file changed both on live and by developer";
+                }
+                return;
+            }
+
+            var result = ThreeWayMerge.Merge(baseText.Lines, liveText.Lines, devText.Lines, devTag);
+            plan.DevChanges = result.DevChanges;
+            plan.LiveChangesKept = result.LiveChangesKept;
+
+            if (result.Conflicts > 0)
+            {
+                plan.Action = MergeAction.Conflict;
+                plan.Note = $"{result.Conflicts} overlapping change(s)";
+                plan.Output = ThreeWayMerge.ToBytes(result.Lines, liveText); // Marker file for manual resolution
+            }
+            else if (result.DevChanges == 0)
+            {
+                plan.Action = MergeAction.Unchanged;
+            }
+            else
+            {
+                plan.Action = MergeAction.Merged;
+                plan.Output = ThreeWayMerge.ToBytes(result.Lines, liveText);
+            }
+        }
+
+        /// <summary>A file placed in Conflicts\ without conflict markers is taken as the final version.</summary>
+        private static void ApplyManualResolution(FileMergePlan plan, string resolvedPath)
+        {
+            if (!File.Exists(resolvedPath))
+            {
+                if (plan.Output != null)
+                {
+                    Directory.CreateDirectory(Path.GetDirectoryName(resolvedPath));
+                    File.WriteAllBytes(resolvedPath, plan.Output);
+                }
+                plan.Output = null;
+                return;
+            }
+
+            byte[] resolved = File.ReadAllBytes(resolvedPath);
+            var text = ThreeWayMerge.TryParseText(resolved);
+            if (text != null && ThreeWayMerge.HasConflictMarkers(text.Lines))
+            {
+                plan.Output = null;
+                plan.Note += " (Conflicts file still has markers)";
+                return;
+            }
+
+            plan.Action = MergeAction.Resolved;
+            plan.Output = resolved;
+            plan.Note = "using manually resolved file from Conflicts\\";
+        }
+
+        private static void LogPlan(List<FileMergePlan> plans, string devTag, Action<string, Color> logger)
+        {
+            foreach (var p in plans.OrderBy(p => p.Action).ThenBy(p => p.RelPath))
+            {
+                string note = string.IsNullOrEmpty(p.Note) ? "" : $" - {p.Note}";
+                switch (p.Action)
+                {
+                    case MergeAction.New:
+                        logger($"  [NEW]      {p.RelPath}", Color.Lime);
+                        break;
+                    case MergeAction.Merged:
+                        string kept = p.LiveChangesKept > 0 ? $", {p.LiveChangesKept} live change(s) kept" : "";
+                        logger($"  [MERGE]    {p.RelPath} ({p.DevChanges} developer change(s) applied{kept}){note}", Color.Yellow);
+                        break;
+                    case MergeAction.Resolved:
+                        logger($"  [RESOLVED] {p.RelPath}{note}", Color.Yellow);
+                        break;
+                    case MergeAction.Conflict:
+                        logger($"  [CONFLICT] {p.RelPath}{note}", Color.Red);
+                        break;
+                    case MergeAction.Unchanged:
+                        if (!string.IsNullOrEmpty(p.Note)) logger($"  [SKIP]     {p.RelPath}{note}", Color.Gray);
+                        break;
+                }
+            }
+
+            int unchanged = plans.Count(p => p.Action == MergeAction.Unchanged);
+            int protectedCount = plans.Count(p => p.Action == MergeAction.Protected);
+            if (unchanged > 0) logger($"  ({unchanged} file(s) unchanged - already identical to live or not modified by {devTag})", Color.Gray);
+            if (protectedCount > 0) logger($"  ({protectedCount} file(s) skipped - protected: .env, writable\\, node_modules\\, graphify-out\\)", Color.Gray);
+
+            int conflicts = plans.Count(p => p.Action == MergeAction.Conflict);
+            if (conflicts > 0)
+            {
+                string conflictsDir = Path.Combine(GetDevDir(devTag), "Conflicts");
+                logger($"[!] {conflicts} conflict(s). Edit the files in {conflictsDir}", Color.Orange);
+                logger("    (remove the <<<<<<< / ||||||| / ======= / >>>>>>> markers, keeping the lines you want), then run merge again.", Color.Orange);
+                logger("    For binary or deleted files, place the final version at the same path in Conflicts\\.", Color.Orange);
+            }
+        }
+
+        private static string LintOutput(FileMergePlan plan)
+        {
+            string temp = Path.Combine(Path.GetTempPath(), $"deploy_lint_{Guid.NewGuid():N}.php");
+            try
+            {
+                File.WriteAllBytes(temp, plan.Output);
+                return RunPhpLint(temp).Replace(temp, plan.RelPath);
+            }
+            finally
+            {
+                try { File.Delete(temp); } catch { }
+            }
+        }
+
+        private static List<FileMergePlan> GetPhpLintFailures(IEnumerable<FileMergePlan> writes, Action<string, Color> logger)
+        {
+            var failures = new List<FileMergePlan>();
+            foreach (var plan in writes.Where(p => p.RelPath.EndsWith(".php", StringComparison.OrdinalIgnoreCase)))
+            {
+                string lint = LintOutput(plan);
+                if (!string.IsNullOrEmpty(lint) && !lint.Contains("No syntax errors detected"))
+                {
+                    failures.Add(plan);
+                    logger($"  [SYNTAX ERROR] {plan.RelPath} (after merge): {lint.Trim()}", Color.Red);
+                }
+            }
+            return failures;
+        }
+
+        #endregion
+
         public static bool CheckUpdate(string devTag, Action<string, Color> logger, out int fileCount, out int errorCount)
         {
             fileCount = 0;
@@ -126,50 +428,29 @@ namespace Server_HTML_Handler.Services
                 return false;
             }
 
-            string updateDir = Path.Combine(GetDevelopingPath(), _selectedProject, devTag, "Update");
+            string updateDir = Path.Combine(GetDevDir(devTag), "Update");
             if (!Directory.Exists(updateDir))
             {
                 logger($"[ERROR] Developer workspace not found at: {updateDir}", Color.Red);
                 return false;
             }
 
-            var files = Directory.GetFiles(updateDir, "*.*", SearchOption.AllDirectories)
-                .Where(f => !Path.GetFileName(f).StartsWith("README_INSTRUCTIONS"))
-                .ToList();
-
-            fileCount = files.Count;
-            if (fileCount == 0)
+            var plans = BuildMergePlan(devTag, logger, out _);
+            if (plans.Count == 0)
             {
                 logger($"[INFO] Update folder is empty for '{devTag}'. Place your modified files in:\n{updateDir}", Color.Orange);
                 return true;
             }
 
-            string liveProjDir = Path.Combine(GetHostingPath(), _selectedProject);
+            LogPlan(plans, devTag, logger);
 
-            foreach (var file in files)
+            var writes = plans.Where(p => p.Output != null && p.Action != MergeAction.Conflict).ToList();
+            fileCount = writes.Count;
+            errorCount = plans.Count(p => p.Action == MergeAction.Conflict) + GetPhpLintFailures(writes, logger).Count;
+
+            if (fileCount == 0 && errorCount == 0)
             {
-                string relPath = file.Substring(updateDir.Length).TrimStart('\\', '/');
-                string liveFile = Path.Combine(liveProjDir, relPath);
-
-                if (file.EndsWith(".php", StringComparison.OrdinalIgnoreCase))
-                {
-                    string lintOutput = RunPhpLint(file);
-                    if (!string.IsNullOrEmpty(lintOutput) && !lintOutput.Contains("No syntax errors detected"))
-                    {
-                        errorCount++;
-                        logger($"  [SYNTAX ERROR] {relPath}: {lintOutput.Trim()}", Color.Red);
-                        continue;
-                    }
-                }
-
-                if (File.Exists(liveFile))
-                {
-                    logger($"  [MODIFIED] {relPath} (Will overwrite live file)", Color.Yellow);
-                }
-                else
-                {
-                    logger($"  [NEW]      {relPath} (New file to be created)", Color.Lime);
-                }
+                logger("[INFO] Nothing to deploy: no file in Update differs from live in a way the developer changed.", Color.Orange);
             }
 
             return errorCount == 0;
@@ -185,38 +466,45 @@ namespace Server_HTML_Handler.Services
                 return false;
             }
 
-            string updateDir = Path.Combine(GetDevelopingPath(), _selectedProject, devTag, "Update");
+            string devDir = GetDevDir(devTag);
+            string updateDir = Path.Combine(devDir, "Update");
             if (!Directory.Exists(updateDir))
             {
                 logger($"[ERROR] Developer workspace not found: {updateDir}", Color.Red);
                 return false;
             }
 
-            var files = Directory.GetFiles(updateDir, "*.*", SearchOption.AllDirectories)
-                .Where(f => !Path.GetFileName(f).StartsWith("README_INSTRUCTIONS"))
-                .ToList();
-
-            if (files.Count == 0)
+            // 1. Plan the line-level merge
+            var plans = BuildMergePlan(devTag, logger, out string baseRoot);
+            if (plans.Count == 0)
             {
                 logger("[INFO] Update folder is empty. Nothing to merge.", Color.Orange);
                 return false;
             }
 
-            // 1. Lint check
-            foreach (var file in files)
+            LogPlan(plans, devTag, logger);
+
+            if (plans.Any(p => p.Action == MergeAction.Conflict))
             {
-                if (file.EndsWith(".php", StringComparison.OrdinalIgnoreCase))
-                {
-                    string lint = RunPhpLint(file);
-                    if (!string.IsNullOrEmpty(lint) && !lint.Contains("No syntax errors detected"))
-                    {
-                        logger($"[ABORTED] PHP Syntax Error in {Path.GetFileName(file)}:\n{lint}", Color.Red);
-                        return false;
-                    }
-                }
+                logger("[ABORTED] Merge stopped because of conflicts. Nothing was changed on live.", Color.Red);
+                return false;
             }
 
-            // 2. Automated Safety Snapshot
+            var writes = plans.Where(p => p.Output != null).ToList();
+            if (writes.Count == 0)
+            {
+                logger("[INFO] Nothing to deploy: no file in Update differs from live in a way the developer changed.", Color.Orange);
+                return false;
+            }
+
+            // 2. Lint the merged result, not just the developer's copy
+            if (GetPhpLintFailures(writes, logger).Count > 0)
+            {
+                logger("[ABORTED] PHP syntax errors in the merged result. Nothing was changed on live.", Color.Red);
+                return false;
+            }
+
+            // 3. Automated Safety Snapshot
             string liveProjDir = Path.Combine(GetHostingPath(), _selectedProject);
             string backupName = $"{_selectedProject}_{DateTime.Now:yyyyMMdd_HHmmss}_{devTag}.zip";
             string backupZipPath = Path.Combine(GetBackupsPath(), backupName);
@@ -235,46 +523,68 @@ namespace Server_HTML_Handler.Services
                 return false;
             }
 
-            // 3. Copy files to Live Site
-            int copied = 0;
+            // 4. Write merged files to Live Site
+            int written = 0;
             try
             {
-                foreach (var file in files)
+                foreach (var plan in writes)
                 {
-                    string relPath = file.Substring(updateDir.Length).TrimStart('\\', '/');
-                    string targetFile = Path.Combine(liveProjDir, relPath);
-                    string targetFolder = Path.GetDirectoryName(targetFile);
-
-                    if (!Directory.Exists(targetFolder)) Directory.CreateDirectory(targetFolder);
-                    File.Copy(file, targetFile, true);
-                    copied++;
+                    string targetFile = Path.Combine(liveProjDir, plan.RelPath);
+                    Directory.CreateDirectory(Path.GetDirectoryName(targetFile));
+                    File.WriteAllBytes(targetFile, plan.Output);
+                    written++;
                 }
             }
             catch (Exception ex)
             {
-                logger($"[ERROR] File copy failed: {ex.Message}. Initiating rollback...", Color.Red);
+                logger($"[ERROR] File write failed: {ex.Message}. Initiating rollback...", Color.Red);
                 Rollback(backupName, logger);
                 return false;
             }
 
-            // 4. Move processed files to History
+            // 5. Advance the Base snapshot so the next upload is compared against what is now live
+            string baseDir = Path.Combine(devDir, "Base");
+            if (string.Equals(baseRoot, baseDir, StringComparison.OrdinalIgnoreCase))
+            {
+                try
+                {
+                    foreach (var plan in writes)
+                    {
+                        string baseFile = Path.Combine(baseDir, plan.RelPath);
+                        Directory.CreateDirectory(Path.GetDirectoryName(baseFile));
+                        File.WriteAllBytes(baseFile, plan.Output);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    logger($"[WARN] Could not update Base snapshot: {ex.Message}", Color.Orange);
+                }
+            }
+
+            // 6. Move processed files (and resolved conflicts) to History
             try
             {
-                string historyDir = Path.Combine(GetDevelopingPath(), _selectedProject, devTag, "History", DateTime.Now.ToString("yyyyMMdd_HHmmss"));
+                string historyDir = Path.Combine(devDir, "History", DateTime.Now.ToString("yyyyMMdd_HHmmss"));
                 Directory.CreateDirectory(historyDir);
 
-                foreach (var file in files)
+                foreach (var plan in plans)
                 {
-                    string relPath = file.Substring(updateDir.Length).TrimStart('\\', '/');
-                    string dest = Path.Combine(historyDir, relPath);
-                    string destFolder = Path.GetDirectoryName(dest);
-                    if (!Directory.Exists(destFolder)) Directory.CreateDirectory(destFolder);
-                    File.Move(file, dest);
+                    string dest = Path.Combine(historyDir, plan.RelPath);
+                    Directory.CreateDirectory(Path.GetDirectoryName(dest));
+                    File.Move(plan.SourceFile, dest);
+                }
+
+                string conflictsDir = Path.Combine(devDir, "Conflicts");
+                if (Directory.Exists(conflictsDir))
+                {
+                    Directory.Move(conflictsDir, Path.Combine(historyDir, "_Conflicts"));
                 }
             }
             catch { }
 
-            logger($"[SUCCESS] {copied} file(s) from '{devTag}' deployed into '{_selectedProject}'!", Color.Lime);
+            int merged = writes.Count(p => p.Action != MergeAction.New);
+            int added = writes.Count(p => p.Action == MergeAction.New);
+            logger($"[SUCCESS] {written} file(s) from '{devTag}' deployed into '{_selectedProject}' ({merged} merged line-by-line, {added} new)!", Color.Lime);
             return true;
         }
 
@@ -286,21 +596,55 @@ namespace Server_HTML_Handler.Services
                 return false;
             }
 
+            string devDir = GetDevDir(devTag);
             string liveProjDir = Path.Combine(GetHostingPath(), _selectedProject);
-            string privateDir = Path.Combine(GetDevelopingPath(), _selectedProject, devTag, "Private");
+            string privateDir = Path.Combine(devDir, "Private");
+            string baseDir = Path.Combine(devDir, "Base");
+            string updateDir = Path.Combine(devDir, "Update");
 
             try
             {
                 Directory.CreateDirectory(privateDir);
                 CopyDirectoryRecursiveExcludingDeveloping(liveProjDir, privateDir);
                 logger($"[SUCCESS] Private folder for '{devTag}' is synchronized with live project '{_selectedProject}'!", Color.Lime);
-                return true;
             }
             catch (Exception ex)
             {
                 logger($"[ERROR] Sync failed: {ex.Message}", Color.Red);
                 return false;
             }
+
+            // Refreshing Base while work is pending would make the pending files look like they undo newer live changes
+            bool hasPendingUpdate = Directory.Exists(updateDir) &&
+                Directory.EnumerateFiles(updateDir, "*.*", SearchOption.AllDirectories)
+                    .Any(f => !Path.GetFileName(f).StartsWith("README_INSTRUCTIONS"));
+            if (hasPendingUpdate)
+            {
+                logger("[WARN] Update folder has files waiting to be merged, so the Base snapshot was NOT refreshed. Merge them first, then sync again.", Color.Orange);
+                return true;
+            }
+
+            try
+            {
+                if (Directory.Exists(baseDir)) DeleteDirectoryForce(baseDir);
+                CopyDirectoryRecursiveExcludingDeveloping(liveProjDir, baseDir, ProtectedDirNames);
+                logger("[+] Base snapshot refreshed (used by 'deploy merge' to apply only the developer's changed lines).", Color.Lime);
+                return true;
+            }
+            catch (Exception ex)
+            {
+                logger($"[ERROR] Base snapshot failed: {ex.Message}", Color.Red);
+                return false;
+            }
+        }
+
+        private static void DeleteDirectoryForce(string dir)
+        {
+            foreach (var file in Directory.GetFiles(dir, "*", SearchOption.AllDirectories))
+            {
+                File.SetAttributes(file, FileAttributes.Normal);
+            }
+            Directory.Delete(dir, true);
         }
 
         public static bool Rollback(string backupName, Action<string, Color> logger)
@@ -388,7 +732,7 @@ namespace Server_HTML_Handler.Services
                 .ToList();
         }
 
-        private static void CopyDirectoryRecursiveExcludingDeveloping(string sourceDir, string destinationDir)
+        private static void CopyDirectoryRecursiveExcludingDeveloping(string sourceDir, string destinationDir, ISet<string> extraExcludedDirs = null)
         {
             Directory.CreateDirectory(destinationDir);
 
@@ -408,7 +752,8 @@ namespace Server_HTML_Handler.Services
                 string dirName = Path.GetFileName(subDir);
                 if (dirName.Equals("Developing", StringComparison.OrdinalIgnoreCase) ||
                     dirName.Equals(".git", StringComparison.OrdinalIgnoreCase) ||
-                    dirName.Equals("graphify-out", StringComparison.OrdinalIgnoreCase))
+                    dirName.Equals("graphify-out", StringComparison.OrdinalIgnoreCase) ||
+                    (extraExcludedDirs != null && extraExcludedDirs.Contains(dirName)))
                 {
                     continue;
                 }
@@ -416,7 +761,7 @@ namespace Server_HTML_Handler.Services
                 string newDestinationDir = Path.Combine(destinationDir, dirName);
                 try
                 {
-                    CopyDirectoryRecursiveExcludingDeveloping(subDir, newDestinationDir);
+                    CopyDirectoryRecursiveExcludingDeveloping(subDir, newDestinationDir, extraExcludedDirs);
                 }
                 catch (DirectoryNotFoundException) { } // Folder removed by another process after enumeration
             }

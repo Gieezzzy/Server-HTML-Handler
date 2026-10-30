@@ -233,9 +233,9 @@ namespace Server_HTML_Handler.View.Contents
             AppendGuideText("   deploy select <project_name>        Select active project (e.g. deploy select NEXUS-L)\n", Color.Black, false);
             AppendGuideText("   deploy init <dev_tag>-<name>        Create Developing/<proj>/<dev_name>/{Update,Private}\n", Color.Black, false);
             AppendGuideText("   deploy devs                         List registered developer staging workspaces\n", Color.Black, false);
-            AppendGuideText("   deploy check <dev_tag>-<name>       Verify PHP syntax & show modified/new files in Update\n", Color.Black, false);
-            AppendGuideText("   deploy merge <dev_tag>-<name>       Auto-snapshot backup & merge Update folder into live\n", Color.Black, false);
-            AppendGuideText("   deploy sync-private <dev_tag>-<name> Copy current live site into dev Private test folder\n", Color.Black, false);
+            AppendGuideText("   deploy check <dev_tag>-<name>       Preview NEW/MERGE/CONFLICT per file & verify PHP syntax\n", Color.Black, false);
+            AppendGuideText("   deploy merge <dev_tag>-<name>       Auto-snapshot backup & apply only the dev's changed lines\n", Color.Black, false);
+            AppendGuideText("   deploy sync-private <dev_tag>-<name> Copy live into dev Private folder & refresh Base snapshot\n", Color.Black, false);
             AppendGuideText("   deploy backups                      List all version snapshot zip backups\n", Color.Black, false);
             AppendGuideText("   deploy rollback [backup_name]       Restore live project to previous version snapshot\n", Color.Black, false);
             AppendGuideText("   deploy help                         Display complete developer workflow guide\n\n", Color.Black, false);
