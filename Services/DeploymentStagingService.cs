@@ -1178,6 +1178,26 @@ namespace Server_HTML_Handler.Services
                 logger("[PHP LINT] All merged PHP files passed syntax checks!", Color.Lime);
             }
 
+            // Clear any stale conflict files in target developer workspace
+            string targetConflicts = Path.Combine(targetDevDir, "Conflicts");
+            if (Directory.Exists(targetConflicts))
+            {
+                try { DeleteDirectoryForce(targetConflicts); } catch { }
+            }
+
+            // Sync targetDev Base snapshot to current live so deploy check/merge applies cleanly
+            string targetBase = Path.Combine(targetDevDir, "Base");
+            try
+            {
+                if (Directory.Exists(targetBase)) DeleteDirectoryForce(targetBase);
+                CopyDirectoryRecursiveExcludingDeveloping(liveProjDir, targetBase, ProtectedDirNames);
+                logger($"[+] Staged Base snapshot aligned with live for '{actualTargetTag}'.", Color.Cyan);
+            }
+            catch (Exception ex)
+            {
+                logger($"[WARN] Could not update Base snapshot: {ex.Message}", Color.Orange);
+            }
+
             logger("==================================================", Color.DarkGray);
             return true;
         }
