@@ -81,7 +81,7 @@ namespace Server_HTML_Handler.Services
         private static readonly Lazy<ShareControlService> _instance = new Lazy<ShareControlService>(() => new ShareControlService());
         public static ShareControlService Instance => _instance.Value;
 
-        public string FolderPath { get; set; } = @"D:\html";
+        public string FolderPath { get; set; } = @"E:\html";
         public string ShareName { get; private set; } = "";
         public int RequestLookbackMinutes { get; set; } = 120;
         public int PollSeconds { get; set; } = 20;

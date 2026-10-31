@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Data;
@@ -111,7 +111,10 @@ namespace Server_HTML_Handler.View.Panel
                 btnFullServerControl,
                 btnCallServer,
                 btnNotifications,
-                btnShareMonitor
+                btnShareMonitor,
+                btnKonginTracker,
+                btnInboundStocks,
+                btnColorExpiry
             };
 
             foreach (var btn in navButtons)
@@ -229,7 +232,7 @@ namespace Server_HTML_Handler.View.Panel
             string hostingPath = Properties.Settings.Default.HTMLPath;
             if (string.IsNullOrWhiteSpace(hostingPath) || !System.IO.Directory.Exists(hostingPath))
             {
-                hostingPath = @"D:\html";
+                hostingPath = @"E:\html";
             }
             string hostIp = Properties.Settings.Default.IP;
             if (string.IsNullOrWhiteSpace(hostIp)) hostIp = "192.168.32.43";
@@ -277,7 +280,7 @@ namespace Server_HTML_Handler.View.Panel
 
             var share = Services.ShareControlService.Instance;
             string path = Properties.Settings.Default.HTMLPath;
-            share.FolderPath = string.IsNullOrWhiteSpace(path) ? @"D:\html" : path;
+            share.FolderPath = string.IsNullOrWhiteSpace(path) ? @"E:\html" : path;
             share.OnNewAccessRequest += HandleShareAccessRequest;
             share.StartMonitor();
         }

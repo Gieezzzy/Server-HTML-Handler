@@ -15,10 +15,10 @@ namespace Server_HTML_Handler.View.Dialogs
         public string CreatedProjectPath { get; private set; }
         public string CreatedProjectUrl { get; private set; }
 
-        public CreateCi4ProjectDialog(string defaultHostingPath = @"D:\html", string defaultIp = "192.168.32.43")
+        public CreateCi4ProjectDialog(string defaultHostingPath = @"E:\html", string defaultIp = "192.168.32.43")
         {
             InitializeComponent();
-            txtHostingPath.Text = !string.IsNullOrWhiteSpace(defaultHostingPath) ? defaultHostingPath : @"D:\html";
+            txtHostingPath.Text = !string.IsNullOrWhiteSpace(defaultHostingPath) ? defaultHostingPath : @"E:\html";
             txtHostIp.Text = !string.IsNullOrWhiteSpace(defaultIp) ? defaultIp : "localhost";
             comboEnvironment.SelectedIndex = 0; // development
             UpdateCalculatedUrl();

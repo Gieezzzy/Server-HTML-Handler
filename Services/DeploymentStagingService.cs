@@ -16,7 +16,7 @@ namespace Server_HTML_Handler.Services
         public static string GetHostingPath()
         {
             string path = Properties.Settings.Default.HTMLPath;
-            return (!string.IsNullOrWhiteSpace(path) && Directory.Exists(path)) ? path : @"D:\html";
+            return (!string.IsNullOrWhiteSpace(path) && Directory.Exists(path)) ? path : @"E:\html";
         }
 
         public static string GetDevelopingPath() => Path.Combine(GetHostingPath(), "Developing");

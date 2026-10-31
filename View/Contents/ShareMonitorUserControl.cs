@@ -332,7 +332,7 @@ namespace Server_HTML_Handler.View.Contents
         private async Task InitialLoadAsync()
         {
             string path = Properties.Settings.Default.HTMLPath;
-            _svc.FolderPath = string.IsNullOrWhiteSpace(path) ? @"D:\html" : path;
+            _svc.FolderPath = string.IsNullOrWhiteSpace(path) ? @"E:\html" : path;
             _lblFolder.Text = "Folder: " + _svc.FolderPath;
 
             bool elevated = ShareControlService.IsElevated();

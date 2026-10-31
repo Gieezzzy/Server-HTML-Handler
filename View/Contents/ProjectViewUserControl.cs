@@ -49,7 +49,7 @@ namespace Server_HTML_Handler.View.Contents
             string hostingPath = Properties.Settings.Default.HTMLPath;
             if (string.IsNullOrWhiteSpace(hostingPath) || !Directory.Exists(hostingPath))
             {
-                hostingPath = @"D:\html";
+                hostingPath = @"E:\html";
             }
             string hostIp = Properties.Settings.Default.IP;
             if (string.IsNullOrWhiteSpace(hostIp)) hostIp = "192.168.32.43";
