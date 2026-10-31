@@ -53,6 +53,7 @@ namespace Server_HTML_Handler.View.Panel
                 notifyIconServer.Icon = SystemIcons.Application;
             }
 
+            notifyIconServer.Visible = false;
             CallSignalingService.OnServerStateChanged += HandleServerStateChanged;
             UpdateTrayServerState(CallSignalingService.IsRunning);
         }
@@ -455,11 +456,18 @@ namespace Server_HTML_Handler.View.Panel
         // ==========================================
         private void btnLogout_Click(object sender, System.EventArgs e)
         {
-            this.Hide();
-            Helper.AppLoginStore.Forget();      // logging out also forgets "Remember me"
-            LoginForm.SkipAutoLogin = true;
-            LoginForm login = new LoginForm();
-            login.Show();
+            if (ServerTrayContext.Current != null)
+            {
+                ServerTrayContext.Current.HandleLogout();
+            }
+            else
+            {
+                this.Hide();
+                Helper.AppLoginStore.Forget();      // logging out also forgets "Remember me"
+                LoginForm.SkipAutoLogin = true;
+                LoginForm login = new LoginForm();
+                login.Show();
+            }
         }
 
         private void DashboardPanel_FormClosing(object sender, FormClosingEventArgs e)
@@ -475,12 +483,12 @@ namespace Server_HTML_Handler.View.Panel
                 e.Cancel = true;
                 this.Hide();
 
-                notifyIconServer.BalloonTipTitle = "Server HTML Handler Active";
-                string serverStatus = CallSignalingService.IsRunning 
-                    ? $"Call Server is running on port {CallSignalingService.Port}." 
-                    : "Running in background.";
-                notifyIconServer.BalloonTipText = $"{serverStatus}\nDouble-click this tray icon or right-click to manage.";
-                notifyIconServer.ShowBalloonTip(2000);
+                if (ServerTrayContext.Current != null)
+                {
+                    ServerTrayContext.Current.ShowNotification(
+                        "Server HTML Handler Active",
+                        "Dashboard minimized to system notification tray. Apache and Call Server are still active.");
+                }
             }
         }
     }

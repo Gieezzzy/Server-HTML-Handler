@@ -2,6 +2,14 @@
 
 [[OBSIDIAN_CODEBASE_INDEX]] | Android record: `C:\Users\AUDIT STAFF\AndroidStudioProjects\RMS\_docs\ICM_CHANGELOG.md`
 
+## Phase 193 - Unified Tray-First Architecture & Apache Auto-Start on Boot (2026-10-31)
+- **Backup:** `C:\Users\AUDIT STAFF\AndroidStudioProjects\RMS\_code_backups\v193_server_handler_tray_first_autostart\`
+- **Decoupled System Tray Architecture:** Server HTML Handler now starts directly into the Windows System Notification Tray (`NotifyIcon`) without presenting an interactive login screen or requiring manual clicks to run Apache.
+- **Auto-Start on Boot:** Background duties (`ApacheWatchdogService`, `CallSignalingService` on port 9000, `NotificationDispatcherService`) launch immediately on process start. Apache is automatically brought online without user login.
+- **Single-Instance IPC:** Mutex prevents duplicate instances. Launching the desktop shortcut while the tray app is running signals the active process via `EventWaitHandle` to bring the Dashboard to the foreground immediately.
+- **Apache Windows Service Configuration:** Added `ServerBackupHelper.ConfigureApacheServiceAutoStart` allowing one-click elevation to set `Apache2.4` service start type to `Automatic`, enabling Apache to run on computer power-on even before any Windows user logs in.
+- **Published:** Bumped ClickOnce `ApplicationRevision` to 27 and published to `E:\Deployed\Web Hosting Handler\`.
+
 ## Phase 120 - Notification hub, Apache watchdog, Folder Access, shared login (2026-10-24)
 - **NotificationDispatcherService:** digests only 07:00-17:00, once per 24 h cycle (`SendSlots`: low stock 2/day, colour expiry 1/day); recipients read/written in `dbRMSAndroid.dbo.tbl_NotificationCategory` (`GetRecipientsAsync`, `SaveRecipientsAsync`) and edited in the Hub **Recipients** tab; colour-expiry scan (`ScanColorExpiryAsync`): start = `EnteredDate`, dark +6 months / light +2 months by Hex or palette name, latest row wins per colour code/name, lists items 14 days before to 30 days after expiry; events raised through `Raise<T>` so a closed tab cannot break a send. Keeps running while minimised / in the tray.
 - **ApacheWatchdogService:** on open and periodically, makes sure the XAMPP Apache is up (service `Apache2.4`, then `httpd.exe`, config test first). XAMPP-only detection in `Helper.ServerBackupHelper` (`GetXamppApacheProcesses`, `IsXamppApacheRunning`); other `httpd.exe` (e.g. PEMHTTPD on 8080) is ignored.

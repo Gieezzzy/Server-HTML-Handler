@@ -1,4 +1,4 @@
-﻿using MySql.Data.MySqlClient;
+using MySql.Data.MySqlClient;
 using Server_HTML_Handler.Models;
 using System;
 using System.Collections.Generic;
@@ -592,6 +592,81 @@ namespace Server_HTML_Handler.Helper
 
             return true;
         }
+        /// <summary>
+        /// Configures the Apache2.4 Windows Service to start automatically on system boot (even before user signs into Windows).
+        /// </summary>
+        public static bool ConfigureApacheServiceAutoStart(out string message)
+        {
+            try
+            {
+                ProcessStartInfo psi = new ProcessStartInfo
+                {
+                    FileName = "cmd.exe",
+                    Arguments = "/c sc.exe config Apache2.4 start= auto & net start Apache2.4",
+                    Verb = "runas",
+                    UseShellExecute = true,
+                    WindowStyle = ProcessWindowStyle.Normal
+                };
+
+                using (Process p = Process.Start(psi))
+                {
+                    p?.WaitForExit();
+                }
+
+                message = "Apache2.4 service has been configured to start automatically on Windows boot.";
+                return true;
+            }
+            catch (Exception ex)
+            {
+                message = "Failed to configure Apache service: " + ex.Message;
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// Checks whether Server HTML Handler is configured to auto-start with Windows (via Startup shortcut or Registry Run).
+        /// </summary>
+        public static bool IsWindowsStartupEnabled()
+        {
+            try
+            {
+                string startupDir = Environment.GetFolderPath(Environment.SpecialFolder.Startup);
+                string shortcutFile = Path.Combine(startupDir, "Server Management System.appref-ms");
+                if (File.Exists(shortcutFile)) return true;
+
+                using (var key = Microsoft.Win32.Registry.CurrentUser.OpenSubKey(@"Software\Microsoft\Windows\CurrentVersion\Run", false))
+                {
+                    return key?.GetValue("ServerHTMLHandler") != null;
+                }
+            }
+            catch { return false; }
+        }
+
+        /// <summary>
+        /// Configures Server HTML Handler in HKCU Run key to auto-start into the notification tray with Windows.
+        /// </summary>
+        public static void SetWindowsStartup(bool enable)
+        {
+            try
+            {
+                using (var key = Microsoft.Win32.Registry.CurrentUser.OpenSubKey(@"Software\Microsoft\Windows\CurrentVersion\Run", true))
+                {
+                    if (key != null)
+                    {
+                        if (enable)
+                        {
+                            key.SetValue("ServerHTMLHandler", "\"" + Application.ExecutablePath + "\" /tray");
+                        }
+                        else
+                        {
+                            key.DeleteValue("ServerHTMLHandler", false);
+                        }
+                    }
+                }
+            }
+            catch { }
+        }
+
         public static List<RouteInfo> GetRoutes(string rootPath)
         {
             var routes = new List<RouteInfo>();

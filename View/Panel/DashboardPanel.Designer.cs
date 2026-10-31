@@ -283,7 +283,7 @@ namespace Server_HTML_Handler.View.Panel
             // 
             this.notifyIconServer.ContextMenuStrip = this.trayContextMenu;
             this.notifyIconServer.Text = "Server HTML Handler & Call Server";
-            this.notifyIconServer.Visible = true;
+            this.notifyIconServer.Visible = false;
             this.notifyIconServer.DoubleClick += new System.EventHandler(this.notifyIconServer_DoubleClick);
             // 
             // trayContextMenu

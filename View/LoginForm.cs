@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Data;
@@ -36,10 +36,10 @@ namespace Server_HTML_Handler.View
 
         private void OpenDashboard()
         {
-            Server_HTML_Handler.View.Panel.DashboardPanel dashboard = new Server_HTML_Handler.View.Panel.DashboardPanel();
-            dashboard.Show();
-            this.Hide();
+            if (Services.ServerTrayContext.Current != null) { Services.ServerTrayContext.Current.NotifyLoginSuccess(); } else { Server_HTML_Handler.View.Panel.DashboardPanel dashboard = new Server_HTML_Handler.View.Panel.DashboardPanel(); dashboard.Show(); this.Hide(); }
         }
+
+
 
         private void btnLogin_Click(object sender, System.EventArgs e)
         {
@@ -92,7 +92,7 @@ namespace Server_HTML_Handler.View
 
         private void btnCancel_Click(object sender, EventArgs e)
         {
-            Application.Exit();
+            if (Services.ServerTrayContext.Current != null) { this.Close(); } else { Application.Exit(); }
         }
     }
 }
