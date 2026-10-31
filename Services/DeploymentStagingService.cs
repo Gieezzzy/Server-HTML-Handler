@@ -514,7 +514,7 @@ namespace Server_HTML_Handler.Services
             {
                 Directory.CreateDirectory(GetBackupsPath());
                 if (File.Exists(backupZipPath)) File.Delete(backupZipPath);
-                ZipFile.CreateFromDirectory(liveProjDir, backupZipPath);
+                CreateSnapshotZip(liveProjDir, backupZipPath);
                 logger($"[+] Auto-snapshot created: Developing\\_Backups\\{backupName}", Color.Lime);
             }
             catch (Exception ex)
@@ -759,14 +759,38 @@ namespace Server_HTML_Handler.Services
             {
                 using (ZipArchive archive = ZipFile.OpenRead(targetZip))
                 {
+                    int restoredCount = 0;
                     foreach (ZipArchiveEntry entry in archive.Entries)
                     {
                         if (string.IsNullOrEmpty(entry.Name)) continue; // Directory entry
-                        string destPath = Path.Combine(liveProjDir, entry.FullName);
+                        string normFullName = entry.FullName.Replace('/', '\\');
+
+                        // Exclude .git and Developing to prevent permission crashes and dirty repository state
+                        if (normFullName.StartsWith(".git\\", StringComparison.OrdinalIgnoreCase) ||
+                            normFullName.Equals(".git", StringComparison.OrdinalIgnoreCase) ||
+                            normFullName.StartsWith("Developing\\", StringComparison.OrdinalIgnoreCase) ||
+                            normFullName.Equals("Developing", StringComparison.OrdinalIgnoreCase))
+                        {
+                            continue;
+                        }
+
+                        string destPath = Path.Combine(liveProjDir, normFullName);
                         string destDir = Path.GetDirectoryName(destPath);
                         if (!Directory.Exists(destDir)) Directory.CreateDirectory(destDir);
+
+                        if (File.Exists(destPath))
+                        {
+                            try
+                            {
+                                File.SetAttributes(destPath, FileAttributes.Normal);
+                            }
+                            catch { }
+                        }
+
                         entry.ExtractToFile(destPath, true);
+                        restoredCount++;
                     }
+                    logger($"[+] Restored {restoredCount} file(s) from snapshot (skipped .git and Developing).", Color.Cyan);
                 }
                 logger("[SUCCESS] Rollback complete! The live project has been restored.", Color.Lime);
                 return true;
@@ -850,6 +874,300 @@ namespace Server_HTML_Handler.Services
             {
                 return ex.Message;
             }
+        }
+
+        private static void CreateSnapshotZip(string sourceDir, string zipPath)
+        {
+            using (var zip = ZipFile.Open(zipPath, ZipArchiveMode.Create))
+            {
+                var allFiles = Directory.GetFiles(sourceDir, "*.*", SearchOption.AllDirectories);
+                foreach (var file in allFiles)
+                {
+                    string relPath = file.Substring(sourceDir.Length).TrimStart('\\', '/');
+                    if (relPath.StartsWith(".git\\", StringComparison.OrdinalIgnoreCase) ||
+                        relPath.StartsWith(".git/", StringComparison.OrdinalIgnoreCase) ||
+                        relPath.StartsWith("Developing\\", StringComparison.OrdinalIgnoreCase) ||
+                        relPath.StartsWith("Developing/", StringComparison.OrdinalIgnoreCase))
+                    {
+                        continue;
+                    }
+                    zip.CreateEntryFromFile(file, relPath.Replace('\\', '/'));
+                }
+            }
+        }
+
+        public static string ResolveDeveloperDir(string devTag)
+        {
+            if (string.IsNullOrWhiteSpace(_selectedProject) || string.IsNullOrWhiteSpace(devTag))
+                return null;
+
+            string projectDevDir = Path.Combine(GetDevelopingPath(), _selectedProject);
+            if (!Directory.Exists(projectDevDir)) return null;
+
+            // Direct match
+            string exact = Path.Combine(projectDevDir, devTag);
+            if (Directory.Exists(exact)) return exact;
+
+            // Case-insensitive / prefix match
+            foreach (var dir in Directory.GetDirectories(projectDevDir))
+            {
+                string name = Path.GetFileName(dir);
+                if (string.Equals(name, devTag, StringComparison.OrdinalIgnoreCase))
+                    return dir;
+            }
+
+            // Normalizing hyphens/underscores match
+            string cleanTag = devTag.Replace("-", "").Replace("_", "");
+            foreach (var dir in Directory.GetDirectories(projectDevDir))
+            {
+                string name = Path.GetFileName(dir).Replace("-", "").Replace("_", "");
+                if (string.Equals(name, cleanTag, StringComparison.OrdinalIgnoreCase))
+                    return dir;
+            }
+
+            return null;
+        }
+
+        private static string GetDevSourceDirectory(string devDir, string devTag, Action<string, Color> logger, out bool isHistory)
+        {
+            isHistory = false;
+            string updateDir = Path.Combine(devDir, "Update");
+            if (Directory.Exists(updateDir))
+            {
+                var updateFiles = Directory.GetFiles(updateDir, "*.*", SearchOption.AllDirectories)
+                    .Where(f => !Path.GetFileName(f).StartsWith("README_INSTRUCTIONS", StringComparison.OrdinalIgnoreCase))
+                    .ToList();
+                if (updateFiles.Count > 0)
+                {
+                    return updateDir;
+                }
+            }
+
+            // If Update is empty, check History
+            string historyRoot = Path.Combine(devDir, "History");
+            if (Directory.Exists(historyRoot))
+            {
+                var latestHist = Directory.GetDirectories(historyRoot)
+                    .OrderByDescending(d => Path.GetFileName(d))
+                    .FirstOrDefault();
+
+                if (latestHist != null)
+                {
+                    var histFiles = Directory.GetFiles(latestHist, "*.*", SearchOption.AllDirectories)
+                        .Where(f => !Path.GetFileName(f).StartsWith("README_INSTRUCTIONS", StringComparison.OrdinalIgnoreCase) &&
+                                    !f.Contains("\\_Conflicts\\"))
+                        .ToList();
+                    if (histFiles.Count > 0)
+                    {
+                        isHistory = true;
+                        logger($"[INFO] '{devTag}' Update folder was empty. Using latest History snapshot: '{Path.GetFileName(latestHist)}' ({histFiles.Count} files)", Color.Cyan);
+                        return latestHist;
+                    }
+                }
+            }
+
+            // Fallback to Private if populated
+            string privateDir = Path.Combine(devDir, "Private");
+            if (Directory.Exists(privateDir) && Directory.EnumerateFileSystemEntries(privateDir).Any())
+            {
+                logger($"[WARN] Using Private folder for '{devTag}' as fallback source.", Color.Orange);
+                return privateDir;
+            }
+
+            return null;
+        }
+
+        /// <summary>
+        /// Pre-merges two developers' work before deploying to live.
+        /// prioTag developer wins on any overlapping conflict (preserving modern layout/architecture).
+        /// secTag developer contributes all brand new files and non-conflicting added lines.
+        /// Results are staged in targetTag\Update.
+        /// </summary>
+        public static bool MergeDevelopers(string prioTag, string secTag, string targetTag, Action<string, Color> logger)
+        {
+            if (string.IsNullOrWhiteSpace(_selectedProject))
+            {
+                logger("[!] No project selected. Run 'deploy select <project>' first.", Color.Orange);
+                return false;
+            }
+
+            string prioDevDir = ResolveDeveloperDir(prioTag);
+            if (prioDevDir == null)
+            {
+                logger($"[ERROR] Priority developer workspace '{prioTag}' not found in Developing\\{_selectedProject}\\", Color.Red);
+                return false;
+            }
+            string actualPrioTag = Path.GetFileName(prioDevDir);
+
+            string secDevDir = ResolveDeveloperDir(secTag);
+            if (secDevDir == null)
+            {
+                logger($"[ERROR] Secondary developer workspace '{secTag}' not found in Developing\\{_selectedProject}\\", Color.Red);
+                return false;
+            }
+            string actualSecTag = Path.GetFileName(secDevDir);
+
+            if (string.IsNullOrWhiteSpace(targetTag))
+            {
+                targetTag = actualPrioTag;
+            }
+
+            string targetDevDir = ResolveDeveloperDir(targetTag);
+            if (targetDevDir == null)
+            {
+                if (!InitDeveloper(targetTag, out _, out _, out string initErr))
+                {
+                    logger($"[ERROR] Could not initialize target workspace '{targetTag}': {initErr}", Color.Red);
+                    return false;
+                }
+                targetDevDir = ResolveDeveloperDir(targetTag);
+            }
+            string actualTargetTag = Path.GetFileName(targetDevDir);
+
+            string prioSource = GetDevSourceDirectory(prioDevDir, actualPrioTag, logger, out _);
+            if (prioSource == null)
+            {
+                logger($"[ERROR] No files found in Update or History for priority developer '{actualPrioTag}'.", Color.Red);
+                return false;
+            }
+
+            string secSource = GetDevSourceDirectory(secDevDir, actualSecTag, logger, out _);
+            if (secSource == null)
+            {
+                logger($"[ERROR] No files found in Update or History for secondary developer '{actualSecTag}'.", Color.Red);
+                return false;
+            }
+
+            string liveProjDir = Path.Combine(GetHostingPath(), _selectedProject);
+            string targetUpdateDir = Path.Combine(targetDevDir, "Update");
+            Directory.CreateDirectory(targetUpdateDir);
+
+            logger($"[PRE-MERGE] Combining '{actualSecTag}' into '{actualPrioTag}' (Output: {actualTargetTag}\\Update)...", Color.Cyan);
+            logger($"  Priority:  {actualPrioTag} (wins any overlapping conflicts)", Color.White);
+            logger($"  Secondary: {actualSecTag} (new files and added non-conflicting code merged)", Color.White);
+            logger("--------------------------------------------------", Color.DarkGray);
+
+            var prioFiles = Directory.GetFiles(prioSource, "*.*", SearchOption.AllDirectories)
+                .Where(f => !Path.GetFileName(f).StartsWith("README_INSTRUCTIONS", StringComparison.OrdinalIgnoreCase) && !f.Contains("\\_Conflicts\\"))
+                .ToDictionary(f => f.Substring(prioSource.Length).TrimStart('\\', '/'), f => f, StringComparer.OrdinalIgnoreCase);
+
+            var secFiles = Directory.GetFiles(secSource, "*.*", SearchOption.AllDirectories)
+                .Where(f => !Path.GetFileName(f).StartsWith("README_INSTRUCTIONS", StringComparison.OrdinalIgnoreCase) && !f.Contains("\\_Conflicts\\"))
+                .ToDictionary(f => f.Substring(secSource.Length).TrimStart('\\', '/'), f => f, StringComparer.OrdinalIgnoreCase);
+
+            var allRelPaths = new HashSet<string>(prioFiles.Keys, StringComparer.OrdinalIgnoreCase);
+            foreach (var k in secFiles.Keys) allRelPaths.Add(k);
+
+            int newCount = 0;
+            int prioCount = 0;
+            int combinedCount = 0;
+            int overlapCount = 0;
+            int syntaxWarnings = 0;
+
+            foreach (var relPath in allRelPaths.OrderBy(p => p))
+            {
+                if (IsProtected(relPath)) continue;
+
+                string outFilePath = Path.Combine(targetUpdateDir, relPath);
+                Directory.CreateDirectory(Path.GetDirectoryName(outFilePath));
+
+                bool inPrio = prioFiles.TryGetValue(relPath, out string prioFile);
+                bool inSec = secFiles.TryGetValue(relPath, out string secFile);
+
+                if (inSec && !inPrio)
+                {
+                    File.Copy(secFile, outFilePath, true);
+                    bool existsLive = File.Exists(Path.Combine(liveProjDir, relPath));
+                    if (!existsLive)
+                    {
+                        logger($"  [NEW FILE]  {relPath} (from {actualSecTag})", Color.Lime);
+                        newCount++;
+                    }
+                    else
+                    {
+                        logger($"  [SEC-ONLY]  {relPath} (from {actualSecTag})", Color.Cyan);
+                    }
+                }
+                else if (inPrio && !inSec)
+                {
+                    File.Copy(prioFile, outFilePath, true);
+                    logger($"  [PRIO-ONLY] {relPath} (from {actualPrioTag})", Color.White);
+                    prioCount++;
+                }
+                else if (inPrio && inSec)
+                {
+                    byte[] prioBytes = File.ReadAllBytes(prioFile);
+                    byte[] secBytes = File.ReadAllBytes(secFile);
+
+                    if (BytesEqual(prioBytes, secBytes))
+                    {
+                        File.WriteAllBytes(outFilePath, prioBytes);
+                        continue;
+                    }
+
+                    var prioText = ThreeWayMerge.TryParseText(prioBytes);
+                    var secText = ThreeWayMerge.TryParseText(secBytes);
+
+                    if (prioText == null || secText == null)
+                    {
+                        File.WriteAllBytes(outFilePath, prioBytes);
+                        logger($"  [BINARY]    {relPath} (kept {actualPrioTag} priority version)", Color.Orange);
+                        continue;
+                    }
+
+                    byte[] baseBytes = ReadIfExists(Path.Combine(secDevDir, "Base", relPath));
+                    if (baseBytes == null) baseBytes = ReadIfExists(Path.Combine(prioDevDir, "Base", relPath));
+                    if (baseBytes == null) baseBytes = ReadIfExists(Path.Combine(liveProjDir, relPath));
+
+                    var baseText = baseBytes == null ? null : ThreeWayMerge.TryParseText(baseBytes);
+                    var baseLines = baseText != null ? baseText.Lines : new List<string>();
+
+                    var mergeResult = ThreeWayMerge.Merge(baseLines, prioText.Lines, secText.Lines, actualSecTag, prioWins: true);
+                    byte[] mergedOutput = ThreeWayMerge.ToBytes(mergeResult.Lines, prioText);
+                    File.WriteAllBytes(outFilePath, mergedOutput);
+
+                    if (mergeResult.PrioConflictsResolved > 0)
+                    {
+                        logger($"  [OVERLAP]   {relPath} ({mergeResult.DevChanges} secondary added, {mergeResult.PrioConflictsResolved} overlap(s) kept priority '{actualPrioTag}')", Color.Yellow);
+                        overlapCount++;
+                        combinedCount++;
+                    }
+                    else
+                    {
+                        string note = mergeResult.DevChanges > 0 ? $" ({mergeResult.DevChanges} secondary added cleanly)" : "";
+                        logger($"  [MERGED]    {relPath}{note}", Color.Lime);
+                        combinedCount++;
+                    }
+                }
+
+                if (relPath.EndsWith(".php", StringComparison.OrdinalIgnoreCase))
+                {
+                    string lint = RunPhpLint(outFilePath);
+                    if (!string.IsNullOrEmpty(lint) && !lint.Contains("No syntax errors detected"))
+                    {
+                        syntaxWarnings++;
+                        logger($"    [SYNTAX ERROR] {relPath}: {lint.Trim()}", Color.Red);
+                    }
+                }
+            }
+
+            logger("--------------------------------------------------", Color.DarkGray);
+            logger($"[SUMMARY] Pre-merge completed: {allRelPaths.Count} total file(s).", Color.Cyan);
+            logger($"  • {newCount} new file(s) from {actualSecTag}", Color.Lime);
+            logger($"  • {prioCount} priority-only file(s) from {actualPrioTag}", Color.White);
+            logger($"  • {combinedCount} combined file(s) ({overlapCount} with overlaps resolved in favor of {actualPrioTag})", Color.Yellow);
+
+            if (syntaxWarnings > 0)
+            {
+                logger($"[!] {syntaxWarnings} PHP syntax error(s) detected! Review before merging live.", Color.Red);
+            }
+            else
+            {
+                logger("[PHP LINT] All merged PHP files passed syntax checks!", Color.Lime);
+            }
+
+            logger("==================================================", Color.DarkGray);
+            return true;
         }
     }
 }

@@ -34,6 +34,7 @@ namespace Server_HTML_Handler.Services
             public int DevChanges;
             public int LiveChangesKept;
             public int Conflicts;
+            public int PrioConflictsResolved;
         }
 
         private static readonly UTF8Encoding StrictUtf8 = new UTF8Encoding(false, true);
@@ -117,8 +118,9 @@ namespace Server_HTML_Handler.Services
         /// <summary>
         /// diff3 merge. Regions changed only by DEV take DEV's lines, regions changed only on LIVE keep LIVE's lines,
         /// identical changes on both sides are taken once, and overlapping different changes become conflict blocks.
+        /// When prioWins is true, overlapping different changes resolve immediately in favor of live (the priority lines) without markers.
         /// </summary>
-        public static MergeResult Merge(List<string> baseLines, List<string> live, List<string> dev, string devLabel)
+        public static MergeResult Merge(List<string> baseLines, List<string> live, List<string> dev, string devLabel, bool prioWins = false)
         {
             int[] mapLive = MatchToBase(baseLines, live);
             int[] mapDev = MatchToBase(baseLines, dev);
@@ -164,14 +166,23 @@ namespace Server_HTML_Handler.Services
                 }
                 else
                 {
-                    result.Conflicts++;
-                    result.Lines.Add(MarkerLive);
-                    result.Lines.AddRange(liveChunk);
-                    result.Lines.Add(MarkerBase);
-                    result.Lines.AddRange(baseChunk);
-                    result.Lines.Add(MarkerSplit);
-                    result.Lines.AddRange(devChunk);
-                    result.Lines.Add($"{MarkerDevPrefix} ({devLabel})");
+                    if (prioWins)
+                    {
+                        // Priority developer (liveChunk) wins conflict without inserting markers
+                        result.Lines.AddRange(liveChunk);
+                        result.PrioConflictsResolved++;
+                    }
+                    else
+                    {
+                        result.Conflicts++;
+                        result.Lines.Add(MarkerLive);
+                        result.Lines.AddRange(liveChunk);
+                        result.Lines.Add(MarkerBase);
+                        result.Lines.AddRange(baseChunk);
+                        result.Lines.Add(MarkerSplit);
+                        result.Lines.AddRange(devChunk);
+                        result.Lines.Add($"{MarkerDevPrefix} ({devLabel})");
+                    }
                 }
 
                 b = bEnd; l = lEnd; d = dEnd;

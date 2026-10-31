@@ -112,6 +112,27 @@ namespace Server_HTML_Handler.View.Contents
                     }
                     break;
 
+                case "merge-devs":
+                case "combine":
+                    if (parts.Length < 4)
+                    {
+                        AppendConsole("Usage: deploy merge-devs <prio_dev> <secondary_dev> [target_dev]", Color.Orange);
+                        AppendConsole("  e.g. deploy merge-devs dev2-ja dev-4-marc", Color.Gray);
+                        AppendConsole("       (Merges dev-4-marc's new files and added lines into dev2-ja, keeping dev2-ja's priority on overlaps)", Color.Gray);
+                        return;
+                    }
+                    string prioDev = parts[2].Trim();
+                    string secDev = parts[3].Trim();
+                    string targetDev = parts.Length > 4 ? parts[4].Trim() : prioDev;
+
+                    AppendConsole($"[MERGE-DEVS] Pre-merging '{secDev}' into '{prioDev}' (Target: '{targetDev}', Priority: '{prioDev}')...", Color.Cyan);
+                    if (DeploymentStagingService.MergeDevelopers(prioDev, secDev, targetDev, (msg, col) => AppendConsole(msg, col)))
+                    {
+                        AppendConsole($"[SUCCESS] Pre-merge complete! Staged in Developing\\{DeploymentStagingService.SelectedProject}\\{targetDev}\\Update\\", Color.Lime);
+                        AppendConsole($"Next step: run 'deploy check {targetDev}' and then 'deploy merge {targetDev}' to deploy to live.", Color.LightBlue);
+                    }
+                    break;
+
                 case "sync-all":
                     DeploymentStagingService.SyncLiveToAllDevelopers((msg, col) => AppendConsole(msg, col), out _, out _);
                     break;
@@ -188,6 +209,7 @@ namespace Server_HTML_Handler.View.Contents
             AppendConsole("   Step 4: deploy sync Dev1-Marc        (or: deploy sync-all to update all developers at once)", Color.Lime);
             AppendConsole("   Step 5: [Developer works in Private, puts finished files into Update/ folder]", Color.Yellow);
             AppendConsole("   Step 6: deploy check Dev1-Marc       (Previews NEW / MERGE / CONFLICT per file, PHP lint)", Color.Lime);
+            AppendConsole("   Step 6b: deploy merge-devs PrioDev SecDev (Combines 2 devs: adds new files/lines, prio dev wins overlaps)", Color.LightBlue);
             AppendConsole("   Step 7: deploy merge Dev1-Marc       (ZIP backup, then applies ONLY the developer's changed lines)", Color.Lime);
             AppendConsole("   Step 8: deploy rollback              (If bug found, restores previous version in 2s)", Color.Lime);
             AppendConsole("==================================================================", Color.Cyan);
