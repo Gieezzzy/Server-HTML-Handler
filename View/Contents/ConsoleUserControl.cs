@@ -262,10 +262,38 @@ namespace Server_HTML_Handler.View.Contents
 
         private void PrintWelcomeBanner()
         {
-            AppendConsole("Server HTML Handler Advanced Control Console Initialized.", Color.Cyan);
-            AppendConsole($"Hosting Path Configured: {DynamicHostingPath}", Color.Cyan);
+            AppendConsole("==================================================================", Color.Cyan);
+            AppendConsole("   Server HTML Handler v1.0.0.31 (Multi-Dev Merge & Staging System)  ", Color.Yellow);
+            AppendConsole("==================================================================", Color.Cyan);
+            AppendConsole($"Hosting Path Configured: {DynamicHostingPath}", Color.White);
             AppendConsole($"Elevated Admin Privileges: {(IsAdministrator() ? "YES" : "NO (UAC Auto-Prompt Active)")}", IsAdministrator() ? Color.Lime : Color.Orange);
-            AppendConsole("Type 'help' for command syntax or press TAB for auto-completion.\n", Color.Gray);
+            AppendConsole("Multi-Dev: Run 'deploy merge-devs <prio> <sec>' to pre-merge 2 devs safely.", Color.LightBlue);
+            AppendConsole("Type 'help' for quick reference, 'deploy help' for staging guide, or 'version' for details.\n", Color.Gray);
+        }
+
+        public void PrintVersionInfo()
+        {
+            AppendConsole("==================================================================", Color.Cyan);
+            AppendConsole("Server HTML Handler - Multi-Developer Staging & Zero-Git Deployment", Color.Yellow);
+            AppendConsole("Version: 1.0.0.31 (Release 2026-11-01)", Color.Lime);
+            AppendConsole("Active Capabilities & Hardened Resilience Features:", Color.White);
+            AppendConsole("  ✓ Multi-Developer 3-Way Merge (deploy merge-devs <prio> <sec> [tgt])", Color.White);
+            AppendConsole("    - Prio dev wins conflicts/overlaps without marker corruption (protects modern UI)", Color.Gray);
+            AppendConsole("    - Secondary dev contributes all new files, models, controllers & non-conflicting code", Color.Gray);
+            AppendConsole("    - Automatic fallback to latest History snapshot if Update/ was already processed", Color.Gray);
+            AppendConsole("    - Self-copy file sharing violation protection (prio == target)", Color.Gray);
+            AppendConsole("    - Automated PHP syntax linting with table-existence safety", Color.Gray);
+            AppendConsole("    - Automatic purge of stale Conflicts/ directories", Color.Gray);
+            AppendConsole("    - Automatic Target Base synchronization with current Live", Color.Gray);
+            AppendConsole("  ✓ Automated Zero-Git Live Deployment (deploy merge <dev>)", Color.White);
+            AppendConsole("    - Clean auto-snapshot backup skipping .git/ and Developing/ folders", Color.Gray);
+            AppendConsole("    - Line-level diff3 application of only modified lines", Color.Gray);
+            AppendConsole("  ✓ Bulletproof Instant Rollback (deploy rollback [snapshot])", Color.White);
+            AppendConsole("    - Automatically skips .git/ and Developing/ (immune to git permission locks)", Color.Gray);
+            AppendConsole("    - Normalizes Windows ReadOnly attributes prior to file extraction", Color.Gray);
+            AppendConsole("    - Auto-realigns all developer Base snapshots to the restored live site", Color.Gray);
+            AppendConsole("    - Automatically purges stale Conflicts/ folders with markers", Color.Gray);
+            AppendConsole("==================================================================", Color.Cyan);
         }
 
         private void AppendGuideText(string text, Color color, bool isBold)
@@ -374,6 +402,12 @@ namespace Server_HTML_Handler.View.Contents
             {
                 switch (primaryCmd)
                 {
+                    case "version":
+                    case "-v":
+                    case "--version":
+                        PrintVersionInfo();
+                        break;
+
                     case "clear":
                         rtbConsoleOutput.Clear();
                         break;

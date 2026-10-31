@@ -792,6 +792,25 @@ namespace Server_HTML_Handler.Services
                     }
                     logger($"[+] Restored {restoredCount} file(s) from snapshot (skipped .git and Developing).", Color.Cyan);
                 }
+
+                // Automatically purge stale conflicts and re-align developer Base snapshots to restored live state
+                try
+                {
+                    var devDirs = GetDevelopers(out _);
+                    foreach (var d in devDirs)
+                    {
+                        string dDir = GetDevDir(d);
+                        string cDir = Path.Combine(dDir, "Conflicts");
+                        if (Directory.Exists(cDir)) DeleteDirectoryForce(cDir);
+
+                        string bDir = Path.Combine(dDir, "Base");
+                        if (Directory.Exists(bDir)) DeleteDirectoryForce(bDir);
+                        CopyDirectoryRecursiveExcludingDeveloping(liveProjDir, bDir, ProtectedDirNames);
+                    }
+                    logger("[+] All developer Base snapshots automatically synchronized with restored live state.", Color.Cyan);
+                }
+                catch { }
+
                 logger("[SUCCESS] Rollback complete! The live project has been restored.", Color.Lime);
                 return true;
             }

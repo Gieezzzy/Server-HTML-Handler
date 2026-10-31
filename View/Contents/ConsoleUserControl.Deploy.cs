@@ -20,6 +20,12 @@ namespace Server_HTML_Handler.View.Contents
 
             switch (subCmd)
             {
+                case "version":
+                case "-v":
+                case "--version":
+                    PrintVersionInfo();
+                    break;
+
                 case "list":
                     ListDeployProjects();
                     break;
