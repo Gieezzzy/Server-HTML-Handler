@@ -638,6 +638,55 @@ namespace Server_HTML_Handler.Services
             }
         }
 
+        public static bool SyncLiveToAllDevelopers(Action<string, Color> logger, out int successCount, out int failCount)
+        {
+            successCount = 0;
+            failCount = 0;
+
+            if (string.IsNullOrWhiteSpace(_selectedProject))
+            {
+                logger("[!] No project selected. Run 'deploy select <project>' first.", Color.Orange);
+                return false;
+            }
+
+            var devs = GetDevelopers(out string err);
+            if (!string.IsNullOrEmpty(err))
+            {
+                logger($"[ERROR] Failed to list developers: {err}", Color.Red);
+                return false;
+            }
+
+            if (devs.Count == 0)
+            {
+                logger($"[INFO] No registered developer workspaces found in project '{_selectedProject}'.", Color.Orange);
+                logger("Tip: Run 'deploy init <dev_tag>-<name>' to register a developer.", Color.Gray);
+                return false;
+            }
+
+            logger($"[SYNC-ALL] Synchronizing live site '{_selectedProject}' across {devs.Count} developer workspace(s)...", Color.Cyan);
+
+            foreach (var dev in devs)
+            {
+                logger("--------------------------------------------------", Color.DarkGray);
+                logger($"▶ Synchronizing developer: '{dev}'", Color.White);
+                bool ok = SyncLiveToPrivate(dev, logger);
+                if (ok) successCount++;
+                else failCount++;
+            }
+
+            logger("==================================================", Color.DarkGray);
+            if (failCount == 0)
+            {
+                logger($"[SUCCESS] All {successCount} developer workspace(s) in '{_selectedProject}' synchronized successfully with live!", Color.Lime);
+            }
+            else
+            {
+                logger($"[SUMMARY] Sync completed: {successCount} succeeded, {failCount} failed. Check log above for details.", Color.Orange);
+            }
+
+            return failCount == 0;
+        }
+
         private static void DeleteDirectoryForce(string dir)
         {
             foreach (var file in Directory.GetFiles(dir, "*", SearchOption.AllDirectories))

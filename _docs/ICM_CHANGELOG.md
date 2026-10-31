@@ -2,6 +2,12 @@
 
 [[OBSIDIAN_CODEBASE_INDEX]] | Android record: `C:\Users\AUDIT STAFF\AndroidStudioProjects\RMS\_docs\ICM_CHANGELOG.md`
 
+## Phase 194 - CLI 'deploy sync-all' Multi-Developer Live Sync (2026-10-31)
+- **Backup:** `C:\Users\AUDIT STAFF\AndroidStudioProjects\RMS\_code_backups\v194_deploy_sync_all_cli\`
+- **CLI Enhancement:** Added `deploy sync-all` and `deploy sync all` commands to simultaneously synchronize the live site across all registered developer staging workspaces in the selected project.
+- **Workflow Protection:** Each developer's `Private/` test directory is refreshed with live code and their `Base/` snapshot is updated (guarded if unmerged files exist in `Update/`).
+- **Published:** Bumped ClickOnce `ApplicationRevision` to 28 and published to `E:\Deployed\Web Hosting Handler\`.
+
 ## Phase 193 - Unified Tray-First Architecture & Apache Auto-Start on Boot (2026-10-31)
 - **Backup:** `C:\Users\AUDIT STAFF\AndroidStudioProjects\RMS\_code_backups\v193_server_handler_tray_first_autostart\`
 - **Decoupled System Tray Architecture:** Server HTML Handler now starts directly into the Windows System Notification Tray (`NotifyIcon`) without presenting an interactive login screen or requiring manual clicks to run Apache.

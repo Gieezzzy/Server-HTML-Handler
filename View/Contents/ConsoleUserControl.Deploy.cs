@@ -112,11 +112,21 @@ namespace Server_HTML_Handler.View.Contents
                     }
                     break;
 
+                case "sync-all":
+                    DeploymentStagingService.SyncLiveToAllDevelopers((msg, col) => AppendConsole(msg, col), out _, out _);
+                    break;
+
                 case "sync-private":
                 case "sync":
+                    if (parts.Length >= 3 && string.Equals(parts[2].Trim(), "all", StringComparison.OrdinalIgnoreCase))
+                    {
+                        DeploymentStagingService.SyncLiveToAllDevelopers((msg, col) => AppendConsole(msg, col), out _, out _);
+                        break;
+                    }
                     if (parts.Length < 3)
                     {
-                        AppendConsole("Usage: deploy sync-private <dev_tag>-<dev_name>   (e.g. deploy sync-private Dev1-Marc)", Color.Orange);
+                        AppendConsole("Usage: deploy sync <dev_tag>-<dev_name>   (e.g. deploy sync Dev1-Marc)", Color.Orange);
+                        AppendConsole("   or: deploy sync-all                   (Syncs all developers at once)", Color.Cyan);
                         return;
                     }
                     string syncTag = parts[2].Trim();
@@ -175,7 +185,7 @@ namespace Server_HTML_Handler.View.Contents
             AppendConsole("   Step 1: deploy list                  (See all projects in D:\\html)", Color.Lime);
             AppendConsole("   Step 2: deploy select NEXUS-L        (Select active project)", Color.Lime);
             AppendConsole("   Step 3: deploy init Dev1-Marc        (Creates Developing\\NEXUS-L\\Dev1-Marc\\{Update,Private})", Color.Lime);
-            AppendConsole("   Step 4: deploy sync-private Dev1-Marc(Copies live to Private/ and snapshots it to Base/)", Color.Lime);
+            AppendConsole("   Step 4: deploy sync Dev1-Marc        (or: deploy sync-all to update all developers at once)", Color.Lime);
             AppendConsole("   Step 5: [Developer works in Private, puts finished files into Update/ folder]", Color.Yellow);
             AppendConsole("   Step 6: deploy check Dev1-Marc       (Previews NEW / MERGE / CONFLICT per file, PHP lint)", Color.Lime);
             AppendConsole("   Step 7: deploy merge Dev1-Marc       (ZIP backup, then applies ONLY the developer's changed lines)", Color.Lime);
