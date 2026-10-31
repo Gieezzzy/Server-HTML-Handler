@@ -630,9 +630,7 @@ namespace Server_HTML_Handler.Helper
         {
             try
             {
-                string startupDir = Environment.GetFolderPath(Environment.SpecialFolder.Startup);
-                string shortcutFile = Path.Combine(startupDir, "Server Management System.appref-ms");
-                if (File.Exists(shortcutFile)) return true;
+                if (File.Exists(GetStartupShortcutPath())) return true;
 
                 using (var key = Microsoft.Win32.Registry.CurrentUser.OpenSubKey(@"Software\Microsoft\Windows\CurrentVersion\Run", false))
                 {
@@ -643,17 +641,32 @@ namespace Server_HTML_Handler.Helper
         }
 
         /// <summary>
-        /// Configures Server HTML Handler in HKCU Run key to auto-start into the notification tray with Windows.
+        /// Configures Server HTML Handler to auto-start into the notification tray with Windows.
+        /// Prefers the ClickOnce shortcut, which keeps working after updates; the exe path changes with every version.
         /// </summary>
         public static void SetWindowsStartup(bool enable)
         {
             try
             {
+                string shortcutFile = GetStartupShortcutPath();
+                string installedShortcut = Path.Combine(
+                    Environment.GetFolderPath(Environment.SpecialFolder.Programs), "Eigeman Go", "Server Management System.appref-ms");
+                bool useShortcut = enable && File.Exists(installedShortcut);
+
+                if (useShortcut)
+                {
+                    File.Copy(installedShortcut, shortcutFile, true);
+                }
+                else if (File.Exists(shortcutFile))
+                {
+                    File.Delete(shortcutFile);
+                }
+
                 using (var key = Microsoft.Win32.Registry.CurrentUser.OpenSubKey(@"Software\Microsoft\Windows\CurrentVersion\Run", true))
                 {
                     if (key != null)
                     {
-                        if (enable)
+                        if (enable && !useShortcut)
                         {
                             key.SetValue("ServerHTMLHandler", "\"" + Application.ExecutablePath + "\" /tray");
                         }
@@ -665,6 +678,11 @@ namespace Server_HTML_Handler.Helper
                 }
             }
             catch { }
+        }
+
+        private static string GetStartupShortcutPath()
+        {
+            return Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Startup), "Server Management System.appref-ms");
         }
 
         public static List<RouteInfo> GetRoutes(string rootPath)

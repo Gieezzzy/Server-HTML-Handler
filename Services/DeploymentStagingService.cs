@@ -602,6 +602,17 @@ namespace Server_HTML_Handler.Services
             string baseDir = Path.Combine(devDir, "Base");
             string updateDir = Path.Combine(devDir, "Update");
 
+            bool hasPendingUpdate = Directory.Exists(updateDir) &&
+                Directory.EnumerateFiles(updateDir, "*.*", SearchOption.AllDirectories)
+                    .Any(f => !Path.GetFileName(f).StartsWith("README_INSTRUCTIONS"));
+
+            // Without Base, Private is the merge base for pending files: overwriting it with live would make them replace newer live changes
+            if (hasPendingUpdate && !Directory.Exists(baseDir))
+            {
+                logger($"[SKIPPED] '{devTag}' has files waiting in Update and no Base snapshot, so Private was NOT changed. Run 'deploy merge {devTag}' first, then sync again.", Color.Orange);
+                return false;
+            }
+
             try
             {
                 Directory.CreateDirectory(privateDir);
@@ -615,9 +626,6 @@ namespace Server_HTML_Handler.Services
             }
 
             // Refreshing Base while work is pending would make the pending files look like they undo newer live changes
-            bool hasPendingUpdate = Directory.Exists(updateDir) &&
-                Directory.EnumerateFiles(updateDir, "*.*", SearchOption.AllDirectories)
-                    .Any(f => !Path.GetFileName(f).StartsWith("README_INSTRUCTIONS"));
             if (hasPendingUpdate)
             {
                 logger("[WARN] Update folder has files waiting to be merged, so the Base snapshot was NOT refreshed. Merge them first, then sync again.", Color.Orange);

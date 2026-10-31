@@ -148,6 +148,7 @@ namespace Server_HTML_Handler.Services
             _itemAutoStart.Click += (s, e) =>
             {
                 ServerBackupHelper.SetWindowsStartup(_itemAutoStart.Checked);
+                _itemAutoStart.Checked = ServerBackupHelper.IsWindowsStartupEnabled();
             };
 
             // Exit
