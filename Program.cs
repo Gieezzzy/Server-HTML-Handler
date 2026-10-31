@@ -1,6 +1,8 @@
 using System;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Runtime.InteropServices;
 using System.Threading;
 using System.Windows.Forms;
 using Server_HTML_Handler.Services;
@@ -9,6 +11,14 @@ namespace Server_HTML_Handler
 {
     internal static class Program
     {
+        [DllImport("user32.dll")]
+        private static extern bool SetForegroundWindow(IntPtr hWnd);
+
+        [DllImport("user32.dll")]
+        private static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
+
+        private const int SW_RESTORE = 9;
+
         private static Mutex _singleInstanceMutex;
 
         /// <summary>
@@ -17,8 +27,27 @@ namespace Server_HTML_Handler
         [STAThread]
         static void Main(string[] args)
         {
-            // 1. Single-instance enforcement:
-            // If already running in tray, signal it to open dashboard, then exit immediately.
+            // 1. Process-level single instance check:
+            // If another instance of Server HTML Handler is already running, restore its window and exit immediately!
+            Process current = Process.GetCurrentProcess();
+            Process other = Process.GetProcessesByName(current.ProcessName)
+                                   .FirstOrDefault(p => p.Id != current.Id);
+            if (other != null)
+            {
+                ServerTrayContext.SignalExistingInstanceToOpenDashboard();
+                try
+                {
+                    if (other.MainWindowHandle != IntPtr.Zero)
+                    {
+                        ShowWindow(other.MainWindowHandle, SW_RESTORE);
+                        SetForegroundWindow(other.MainWindowHandle);
+                    }
+                }
+                catch { }
+                return;
+            }
+
+            // 2. Named Mutex single-instance check:
             string mutexName = @"Local\ServerHTMLHandler_Mutex_" + Environment.UserName;
             _singleInstanceMutex = new Mutex(true, mutexName, out bool createdNew);
             if (!createdNew)

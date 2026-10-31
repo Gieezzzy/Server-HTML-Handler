@@ -2,6 +2,12 @@
 
 [[OBSIDIAN_CODEBASE_INDEX]] | Android record: `C:\Users\AUDIT STAFF\AndroidStudioProjects\RMS\_docs\ICM_CHANGELOG.md`
 
+## Phase 195 - Single-Instance Enforcement & Win32 Tray Restore (2026-10-31)
+- **Backup:** `C:\Users\AUDIT STAFF\AndroidStudioProjects\RMS\_code_backups\v195_prevent_multiple_instances_restore_tray\`
+- **Dual Single-Instance Guard:** Implemented process-level detection (`Process.GetProcessesByName`) and named Mutex (`Local\ServerHTMLHandler_Mutex_`). Prevents duplicate instances under all execution contexts (desktop shortcut, startup, ClickOnce).
+- **Win32 Window Restoration:** Added `ForceForeground` using `ShowWindow(SW_RESTORE)` and `SetForegroundWindow`. When the user clicks the shortcut while the app is hidden in the tray, the running instance instantly pops to the foreground without flashing or remaining hidden.
+- **Published:** Bumped ClickOnce `ApplicationRevision` to 29 and published to `E:\Deployed\Web Hosting Handler\`.
+
 ## Phase 194 - CLI 'deploy sync-all' Multi-Developer Live Sync (2026-10-31)
 - **Backup:** `C:\Users\AUDIT STAFF\AndroidStudioProjects\RMS\_code_backups\v194_deploy_sync_all_cli\`
 - **CLI Enhancement:** Added `deploy sync-all` and `deploy sync all` commands to simultaneously synchronize the live site across all registered developer staging workspaces in the selected project.

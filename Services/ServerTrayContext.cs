@@ -1,3 +1,4 @@
+using System.Runtime.InteropServices;
 using System;
 using System.Diagnostics;
 using System.Drawing;
@@ -208,7 +209,7 @@ namespace Server_HTML_Handler.Services
                     {
                         try
                         {
-                            if (_showDashboardEvent != null && _showDashboardEvent.WaitOne(1000))
+                            if (_showDashboardEvent != null && _showDashboardEvent.WaitOne(250))
                             {
                                 if (_isExiting) break;
                                 _syncContext.Post(_ => ShowDashboard(), null);
@@ -328,20 +329,40 @@ namespace Server_HTML_Handler.Services
             catch { }
         }
 
+        [DllImport("user32.dll")]
+        private static extern bool SetForegroundWindow(IntPtr hWnd);
+
+        [DllImport("user32.dll")]
+        private static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
+
+        private const int SW_RESTORE = 9;
+
+        private static void ForceForeground(Form form)
+        {
+            if (form == null || form.IsDisposed) return;
+            try
+            {
+                if (!form.Visible) form.Show();
+                if (form.WindowState == FormWindowState.Minimized)
+                {
+                    form.WindowState = FormWindowState.Normal;
+                }
+                ShowWindow(form.Handle, SW_RESTORE);
+                SetForegroundWindow(form.Handle);
+                form.BringToFront();
+                form.Activate();
+            }
+            catch { }
+        }
+
         public void ShowDashboard()
         {
             if (_isExiting) return;
 
-            // 1. If Dashboard already exists, bring it up
+            // 1. If Dashboard already exists, restore and bring it to front
             if (_dashboard != null && !_dashboard.IsDisposed)
             {
-                if (!_dashboard.Visible) _dashboard.Show();
-                if (_dashboard.WindowState == FormWindowState.Minimized)
-                {
-                    _dashboard.WindowState = FormWindowState.Normal;
-                }
-                _dashboard.BringToFront();
-                _dashboard.Activate();
+                ForceForeground(_dashboard);
                 return;
             }
 
@@ -355,17 +376,13 @@ namespace Server_HTML_Handler.Services
                 // If not remembered, show LoginForm
                 if (_loginForm != null && !_loginForm.IsDisposed)
                 {
-                    if (!_loginForm.Visible) _loginForm.Show();
-                    _loginForm.BringToFront();
-                    _loginForm.Activate();
+                    ForceForeground(_loginForm);
                     return;
                 }
 
                 _loginForm = new LoginForm();
                 _loginForm.FormClosed += (s, e) => _loginForm = null;
-                _loginForm.Show();
-                _loginForm.BringToFront();
-                _loginForm.Activate();
+                ForceForeground(_loginForm);
             }
         }
 
@@ -397,13 +414,7 @@ namespace Server_HTML_Handler.Services
                 };
             }
 
-            _dashboard.Show();
-            if (_dashboard.WindowState == FormWindowState.Minimized)
-            {
-                _dashboard.WindowState = FormWindowState.Normal;
-            }
-            _dashboard.BringToFront();
-            _dashboard.Activate();
+            ForceForeground(_dashboard);
         }
 
         public void HandleLogout()
