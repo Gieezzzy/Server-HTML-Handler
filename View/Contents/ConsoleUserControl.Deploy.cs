@@ -209,7 +209,9 @@ namespace Server_HTML_Handler.View.Contents
             AppendConsole("   Step 4: deploy sync Dev1-Marc        (or: deploy sync-all to update all developers at once)", Color.Lime);
             AppendConsole("   Step 5: [Developer works in Private, puts finished files into Update/ folder]", Color.Yellow);
             AppendConsole("   Step 6: deploy check Dev1-Marc       (Previews NEW / MERGE / CONFLICT per file, PHP lint)", Color.Lime);
-            AppendConsole("   Step 6b: deploy merge-devs PrioDev SecDev (Combines 2 devs: adds new files/lines, prio dev wins overlaps)", Color.LightBlue);
+            AppendConsole("   Step 6b: deploy merge-devs <prio_dev> <sec_dev> [target_dev]", Color.LightBlue);
+            AppendConsole("            Pre-merges 2 devs: all new files & non-conflicting code merged, prio dev wins overlaps.", Color.Gray);
+            AppendConsole("            e.g. deploy merge-devs dev2-ja dev-4-marc   (Combines dev-4-marc into dev2-ja)", Color.Cyan);
             AppendConsole("   Step 7: deploy merge Dev1-Marc       (ZIP backup, then applies ONLY the developer's changed lines)", Color.Lime);
             AppendConsole("   Step 8: deploy rollback              (If bug found, restores previous version in 2s)", Color.Lime);
             AppendConsole("==================================================================", Color.Cyan);

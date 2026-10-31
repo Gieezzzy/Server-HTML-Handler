@@ -234,6 +234,7 @@ namespace Server_HTML_Handler.View.Contents
             AppendGuideText("   deploy init <dev_tag>-<name>        Create Developing/<proj>/<dev_name>/{Update,Private}\n", Color.Black, false);
             AppendGuideText("   deploy devs                         List registered developer staging workspaces\n", Color.Black, false);
             AppendGuideText("   deploy check <dev_tag>-<name>       Preview NEW/MERGE/CONFLICT per file & verify PHP syntax\n", Color.Black, false);
+            AppendGuideText("   deploy merge-devs <prio> <sec> [tgt]Pre-merge 2 devs: adds new files/lines, prio dev wins overlaps\n", Color.Black, false);
             AppendGuideText("   deploy merge <dev_tag>-<name>       Auto-snapshot backup & apply only the dev's changed lines\n", Color.Black, false);
             AppendGuideText("   deploy sync <dev_tag>-<name>        Copy live into dev Private folder & refresh Base snapshot\n", Color.Black, false);
             AppendGuideText("   deploy sync-all                     Sync live into ALL registered developers at once\n", Color.Black, false);
