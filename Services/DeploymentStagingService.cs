@@ -1076,7 +1076,10 @@ namespace Server_HTML_Handler.Services
 
                 if (inSec && !inPrio)
                 {
-                    File.Copy(secFile, outFilePath, true);
+                    if (!string.Equals(secFile, outFilePath, StringComparison.OrdinalIgnoreCase))
+                    {
+                        File.Copy(secFile, outFilePath, true);
+                    }
                     bool existsLive = File.Exists(Path.Combine(liveProjDir, relPath));
                     if (!existsLive)
                     {
@@ -1090,7 +1093,10 @@ namespace Server_HTML_Handler.Services
                 }
                 else if (inPrio && !inSec)
                 {
-                    File.Copy(prioFile, outFilePath, true);
+                    if (!string.Equals(prioFile, outFilePath, StringComparison.OrdinalIgnoreCase))
+                    {
+                        File.Copy(prioFile, outFilePath, true);
+                    }
                     logger($"  [PRIO-ONLY] {relPath} (from {actualPrioTag})", Color.White);
                     prioCount++;
                 }
@@ -1101,7 +1107,10 @@ namespace Server_HTML_Handler.Services
 
                     if (BytesEqual(prioBytes, secBytes))
                     {
-                        File.WriteAllBytes(outFilePath, prioBytes);
+                        if (!string.Equals(prioFile, outFilePath, StringComparison.OrdinalIgnoreCase))
+                        {
+                            File.WriteAllBytes(outFilePath, prioBytes);
+                        }
                         continue;
                     }
 
@@ -1110,7 +1119,10 @@ namespace Server_HTML_Handler.Services
 
                     if (prioText == null || secText == null)
                     {
-                        File.WriteAllBytes(outFilePath, prioBytes);
+                        if (!string.Equals(prioFile, outFilePath, StringComparison.OrdinalIgnoreCase))
+                        {
+                            File.WriteAllBytes(outFilePath, prioBytes);
+                        }
                         logger($"  [BINARY]    {relPath} (kept {actualPrioTag} priority version)", Color.Orange);
                         continue;
                     }
