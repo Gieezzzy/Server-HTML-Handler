@@ -28,10 +28,15 @@ namespace Server_HTML_Handler
         static void Main(string[] args)
         {
             // 1. Process-level single instance check:
-            // If another instance of Server HTML Handler is already running, restore its window and exit immediately!
+            // If another instance of Server HTML Handler is already running, restore its window and exit immediately,
+            // unless this is a newer (just updated) version: then the older copy is closed and this one takes over.
             Process current = Process.GetCurrentProcess();
             Process other = Process.GetProcessesByName(current.ProcessName)
-                                   .FirstOrDefault(p => p.Id != current.Id);
+                                   .FirstOrDefault(p => p.Id != current.Id && p.SessionId == current.SessionId);
+            if (other != null && IsNewerThan(other) && ReplaceOlderInstance(other))
+            {
+                other = null;
+            }
             if (other != null)
             {
                 ServerTrayContext.SignalExistingInstanceToOpenDashboard();
@@ -97,6 +102,51 @@ namespace Server_HTML_Handler
                     try { _singleInstanceMutex.ReleaseMutex(); } catch { }
                     _singleInstanceMutex.Dispose();
                 }
+            }
+        }
+
+        /// <summary>The ClickOnce version of this copy (e.g. 1.0.0.32), or null when not installed through ClickOnce.</summary>
+        public static Version AppVersion => ReadDeployedVersion(Application.ExecutablePath);
+
+        /// <summary>Reads the version ClickOnce writes into the .exe.manifest installed next to the exe.</summary>
+        private static Version ReadDeployedVersion(string exePath)
+        {
+            try
+            {
+                string manifest = exePath + ".manifest";
+                if (!File.Exists(manifest)) return null;
+                var doc = System.Xml.Linq.XDocument.Load(manifest);
+                var identity = doc.Root?.Elements().FirstOrDefault(e => e.Name.LocalName == "assemblyIdentity");
+                return Version.TryParse((string)identity?.Attribute("version"), out Version v) ? v : null;
+            }
+            catch { return null; }
+        }
+
+        private static bool IsNewerThan(Process other)
+        {
+            try
+            {
+                Version mine = AppVersion;
+                Version theirs = ReadDeployedVersion(other.MainModule.FileName);
+                return mine != null && theirs != null && mine > theirs;
+            }
+            catch { return false; }
+        }
+
+        /// <summary>Asks the older running copy to exit; copies from before 1.0.0.33 cannot hear that, so they are closed after a wait.</summary>
+        private static bool ReplaceOlderInstance(Process older)
+        {
+            try
+            {
+                ServerTrayContext.SignalExistingInstanceToExit();
+                if (older.WaitForExit(15000)) return true;
+                older.Kill();
+                return older.WaitForExit(5000);
+            }
+            catch (Exception ex)
+            {
+                LogCrash(ex);
+                return false;
             }
         }
 

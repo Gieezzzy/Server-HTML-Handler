@@ -280,7 +280,7 @@ namespace Server_HTML_Handler.View.Contents
         {
             AppendConsole("==================================================================", Color.Cyan);
             AppendConsole("Server HTML Handler - Multi-Developer Staging & Zero-Git Deployment", Color.Yellow);
-            AppendConsole("Version: 1.0.0.31 (Release 2026-11-01)", Color.Lime);
+            AppendConsole("Version: " + (Program.AppVersion?.ToString() ?? "development build (not installed through ClickOnce)"), Color.Lime);
             AppendConsole("Active Capabilities & Hardened Resilience Features:", Color.White);
             AppendConsole("  ✓ Multi-Developer 3-Way Merge (deploy merge-devs <prio> <sec> [tgt])", Color.White);
             AppendConsole("    - Prio dev wins conflicts/overlaps without marker corruption (protects modern UI)", Color.Gray);

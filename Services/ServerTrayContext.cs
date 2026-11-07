@@ -46,15 +46,22 @@ namespace Server_HTML_Handler.Services
         private LoginForm _loginForm;
 
         private static string ShowEventName => @"Local\ServerHTMLHandler_ShowEvent_" + Environment.UserName;
+        private static string ExitEventName => @"Local\ServerHTMLHandler_ExitEvent_" + Environment.UserName;
+        private EventWaitHandle _exitEvent;
 
         /// <summary>
         /// Signals an already running tray instance to open and bring the Dashboard to the front.
         /// </summary>
-        public static void SignalExistingInstanceToOpenDashboard()
+        public static void SignalExistingInstanceToOpenDashboard() => SetNamedEvent(ShowEventName);
+
+        /// <summary>Asks an already running (older) tray instance to shut down so an updated version can take over.</summary>
+        public static void SignalExistingInstanceToExit() => SetNamedEvent(ExitEventName);
+
+        private static void SetNamedEvent(string name)
         {
             try
             {
-                using (var evt = EventWaitHandle.OpenExisting(ShowEventName))
+                using (var evt = EventWaitHandle.OpenExisting(name))
                 {
                     evt.Set();
                 }
@@ -204,17 +211,19 @@ namespace Server_HTML_Handler.Services
             try
             {
                 _showDashboardEvent = new EventWaitHandle(false, EventResetMode.AutoReset, ShowEventName, out _);
+                _exitEvent = new EventWaitHandle(false, EventResetMode.AutoReset, ExitEventName, out _);
+                var showEvent = _showDashboardEvent;
+                var exitEvent = _exitEvent;
                 Task.Run(() =>
                 {
                     while (!_isExiting)
                     {
                         try
                         {
-                            if (_showDashboardEvent != null && _showDashboardEvent.WaitOne(250))
-                            {
-                                if (_isExiting) break;
-                                _syncContext.Post(_ => ShowDashboard(), null);
-                            }
+                            int signaled = WaitHandle.WaitAny(new WaitHandle[] { showEvent, exitEvent }, 250);
+                            if (_isExiting) break;
+                            if (signaled == 0) _syncContext.Post(_ => ShowDashboard(), null);
+                            else if (signaled == 1) _syncContext.Post(_ => ShutdownApplication(), null);
                         }
                         catch { break; }
                     }
@@ -452,11 +461,14 @@ namespace Server_HTML_Handler.Services
                     _showDashboardEvent.Dispose();
                     _showDashboardEvent = null;
                 }
+                _exitEvent?.Dispose();
+                _exitEvent = null;
             }
             catch { }
 
             try { CallSignalingService.Stop(); } catch { }
             try { ApacheWatchdogService.Instance.Stop(); } catch { }
+            try { EmailOutboxService.Instance.Stop(); } catch { }
 
             if (_trayIcon != null)
             {
