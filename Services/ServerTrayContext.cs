@@ -268,6 +268,10 @@ namespace Server_HTML_Handler.Services
             // Auto-start Notification Dispatcher Watcher
             try { NotificationDispatcherService.Instance.StartWatcher(); }
             catch (Exception ex) { Program.LogCrash(ex); }
+
+            // Deliver emails that NEXUS-L queues in tbl_email_outbox
+            try { EmailOutboxService.Instance.Start(); }
+            catch (Exception ex) { Program.LogCrash(ex); }
         }
 
         public void UpdateStatus(bool force)

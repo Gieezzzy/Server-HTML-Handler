@@ -225,8 +225,13 @@ namespace Server_HTML_Handler.View.Contents
             AppendGuideText("   git branch [repo_path]              List local and remote branches\n", Color.Black, false);
             AppendGuideText("   git checkout <repo_path> <branch>  Switch active branch\n\n", Color.Black, false);
 
-            AppendGuideText("9. EMAIL SERVICE DIAGNOSTICS\n", Color.DarkBlue, true);
-            AppendGuideText("   mail test <to_email> [host] [port] Test SMTP connection and send verification mail\n\n", Color.Black, false);
+            AppendGuideText("9. EMAIL (GMAIL / OUTLOOK / SMTP)\n", Color.DarkBlue, true);
+            AppendGuideText("   mail help                           Full list of email commands\n", Color.Black, false);
+            AppendGuideText("   mail setup gmail|outlook|smtp ...   Set the default sender account\n", Color.Black, false);
+            AppendGuideText("   mail status                         Account, outbox sender and queue counts\n", Color.Black, false);
+            AppendGuideText("   mail test <to_email>                Send a test email with the saved account\n", Color.Black, false);
+            AppendGuideText("   mail send <to> \"<subject>\" \"<body>\"  Send an email\n", Color.Black, false);
+            AppendGuideText("   mail queue [n] / mail retry <id>    NEXUS-L outbox (tbl_email_outbox)\n\n", Color.Black, false);
 
             AppendGuideText("10. MULTI-DEVELOPER DEPLOY & STAGING SYSTEM (NO GIT)\n", Color.DarkBlue, true);
             AppendGuideText("   deploy list                         List all projects in E:\\html & current selection\n", Color.Black, false);
@@ -543,7 +548,7 @@ namespace Server_HTML_Handler.View.Contents
                         break;
 
                     case "mail":
-                        HandleMailCommand(parts);
+                        HandleMailCommand(input);
                         break;
 
                     case "lab":
@@ -1623,45 +1628,6 @@ namespace Server_HTML_Handler.View.Contents
                     ExecuteSystemCmd($"cd /d \"{targetPath}\" && git {subCmd} {extraArgs}");
                     break;
             }
-        }
-
-        private void HandleMailCommand(string[] parts)
-        {
-            if (parts.Length < 3 || parts[1].ToLower() != "test")
-            {
-                AppendConsole("Usage: mail test <to_email> [smtp_host] [port]", Color.Orange);
-                return;
-            }
-
-            string toEmail = parts[2];
-            string smtpHost = parts.Length > 3 ? parts[3] : "127.0.0.1";
-            int smtpPort = (parts.Length > 4 && int.TryParse(parts[4], out int p)) ? p : 25;
-
-            Task.Run(() =>
-            {
-                try
-                {
-                    AppendConsole($"Testing SMTP server at {smtpHost}:{smtpPort}...", Color.Cyan);
-
-                    using (var message = new MailMessage("noreply@localhost", toEmail))
-                    {
-                        message.Subject = "XAMPP Console Service Diagnostic Test";
-                        message.Body = $"This is an automated test email sent from Server HTML Handler Console at {DateTime.Now}.";
-
-                        using (var client = new SmtpClient(smtpHost, smtpPort))
-                        {
-                            client.Timeout = 10000;
-                            client.Send(message);
-                        }
-                    }
-
-                    AppendConsole($"Test email successfully delivered to '{toEmail}'.", Color.Lime);
-                }
-                catch (Exception ex)
-                {
-                    AppendConsole($"SMTP Mail Diagnostic Failed: {ex.Message}", Color.Red);
-                }
-            });
         }
 
         #endregion
