@@ -6,6 +6,7 @@ using System.Net;
 using System.Net.Http;
 using System.Net.Mail;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using Newtonsoft.Json;
@@ -108,9 +109,11 @@ namespace Server_HTML_Handler.Services
 
             try
             {
+                // pictures written into the HTML as data:image/...;base64 go out as real inline images (most mail programs show no data: pictures)
+                var inline = isHtml ? ExtractInlineImages(ref body) : new List<InlineImage>();
                 return settings.Provider == "outlook"
-                    ? SendViaGraph(settings, toList, ccList, subject, body, isHtml)
-                    : SendViaSmtp(settings, toList, ccList, subject, body, isHtml);
+                    ? SendViaGraph(settings, toList, ccList, subject, body, isHtml, inline)
+                    : SendViaSmtp(settings, toList, ccList, subject, body, isHtml, inline);
             }
             catch (Exception ex)
             {
@@ -118,7 +121,22 @@ namespace Server_HTML_Handler.Services
             }
         }
 
-        private static string SendViaSmtp(MailSettings s, List<string> to, List<string> cc, string subject, string body, bool isHtml)
+        private class InlineImage { public string Cid; public string Mime; public byte[] Bytes; }
+
+        /// <summary>Replaces every src="data:image/png;base64,..." of an HTML body by src="cid:..." and returns the pictures.</summary>
+        private static List<InlineImage> ExtractInlineImages(ref string body)
+        {
+            var list = new List<InlineImage>();
+            body = Regex.Replace(body ?? "", "src=\"data:(image/(?:png|jpeg|gif));base64,([A-Za-z0-9+/=]+)\"", m =>
+            {
+                var img = new InlineImage { Cid = "img" + (list.Count + 1) + "@nexus-l", Mime = m.Groups[1].Value, Bytes = Convert.FromBase64String(m.Groups[2].Value) };
+                list.Add(img);
+                return "src=\"cid:" + img.Cid + "\"";
+            }, RegexOptions.IgnoreCase);
+            return list;
+        }
+
+        private static string SendViaSmtp(MailSettings s, List<string> to, List<string> cc, string subject, string body, bool isHtml, List<InlineImage> inline = null)
         {
             using (var message = new MailMessage())
             {
@@ -127,10 +145,20 @@ namespace Server_HTML_Handler.Services
                 foreach (var a in cc) message.CC.Add(a);
                 if (!string.IsNullOrWhiteSpace(s.ReplyTo)) message.ReplyToList.Add(s.ReplyTo);
                 message.Subject = subject;
-                message.Body = body;
-                message.IsBodyHtml = isHtml;
                 message.SubjectEncoding = Encoding.UTF8;
                 message.BodyEncoding = Encoding.UTF8;
+                if (isHtml && inline != null && inline.Count > 0)
+                {
+                    var view = AlternateView.CreateAlternateViewFromString(body, Encoding.UTF8, "text/html");
+                    foreach (var img in inline)
+                        view.LinkedResources.Add(new LinkedResource(new MemoryStream(img.Bytes), img.Mime) { ContentId = img.Cid, TransferEncoding = System.Net.Mime.TransferEncoding.Base64 });
+                    message.AlternateViews.Add(view);
+                }
+                else
+                {
+                    message.Body = body;
+                    message.IsBodyHtml = isHtml;
+                }
 
                 using (var client = new SmtpClient(s.SmtpHost, s.SmtpPort))
                 {
@@ -146,7 +174,7 @@ namespace Server_HTML_Handler.Services
             return null;
         }
 
-        private static string SendViaGraph(MailSettings s, List<string> to, List<string> cc, string subject, string body, bool isHtml)
+        private static string SendViaGraph(MailSettings s, List<string> to, List<string> cc, string subject, string body, bool isHtml, List<InlineImage> inline = null)
         {
             string token = GetGraphAccessToken(s, out string tokenError);
             if (token == null) return tokenError;
@@ -160,6 +188,12 @@ namespace Server_HTML_Handler.Services
                 ["body"] = new JObject { ["contentType"] = isHtml ? "HTML" : "Text", ["content"] = body },
                 ["toRecipients"] = Recipients(to)
             };
+            if (inline != null && inline.Count > 0)
+                message["attachments"] = new JArray(inline.Select(i => new JObject
+                {
+                    ["@odata.type"] = "#microsoft.graph.fileAttachment", ["name"] = i.Cid.Split('@')[0] + (i.Mime.EndsWith("png") ? ".png" : ".img"),
+                    ["contentType"] = i.Mime, ["contentBytes"] = Convert.ToBase64String(i.Bytes), ["isInline"] = true, ["contentId"] = i.Cid
+                }));
             if (cc.Count > 0) message["ccRecipients"] = Recipients(cc);
             if (!string.IsNullOrWhiteSpace(s.ReplyTo)) message["replyTo"] = Recipients(new[] { s.ReplyTo });
             // Sending as another mailbox (e.g. a shared noreply@) needs "Send As" permission on it
