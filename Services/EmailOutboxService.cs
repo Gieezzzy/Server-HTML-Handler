@@ -50,15 +50,20 @@ namespace Server_HTML_Handler.Services
                     CREATE TABLE IF NOT EXISTS tbl_email_outbox (
                         id              BIGINT AUTO_INCREMENT PRIMARY KEY,
                         source          VARCHAR(50)  NOT NULL DEFAULT 'NEXUS-L',
+                        sender_name     VARCHAR(100) NULL,
+                        sender_email    VARCHAR(150) NULL,
                         to_address      TEXT         NOT NULL,
                         cc_address      TEXT         NULL,
                         subject         VARCHAR(255) NOT NULL,
                         body            MEDIUMTEXT   NOT NULL,
+                        attachments     LONGTEXT     NULL,
                         is_html         TINYINT(1)   NOT NULL DEFAULT 1,
                         status          VARCHAR(10)  NOT NULL DEFAULT 'queued',
                         attempts        INT          NOT NULL DEFAULT 0,
                         last_error      TEXT         NULL,
                         created_at      DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                        claimed_at      DATETIME     NULL,
+                        claimed_by      VARCHAR(20)  NULL,
                         next_attempt_at DATETIME     NULL,
                         sent_at         DATETIME     NULL,
                         KEY idx_outbox_status (status, next_attempt_at)
@@ -66,7 +71,67 @@ namespace Server_HTML_Handler.Services
                 {
                     cmd.ExecuteNonQuery();
                 }
+                // a table made by an older version misses some columns
+                var have = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                using (var cmd = new MySqlCommand("SHOW COLUMNS FROM tbl_email_outbox", conn))
+                using (var r = cmd.ExecuteReader())
+                {
+                    while (r.Read()) have.Add(r.GetString(0));
+                }
+                var add = new Dictionary<string, string>
+                {
+                    ["sender_name"] = "VARCHAR(100) NULL", ["sender_email"] = "VARCHAR(150) NULL", ["attachments"] = "LONGTEXT NULL",
+                    ["claimed_at"] = "DATETIME NULL", ["claimed_by"] = "VARCHAR(20) NULL"
+                };
+                foreach (var kv in add)
+                {
+                    if (have.Contains(kv.Key)) continue;
+                    using (var cmd = new MySqlCommand("ALTER TABLE tbl_email_outbox ADD COLUMN " + kv.Key + " " + kv.Value, conn))
+                        cmd.ExecuteNonQuery();
+                }
             }
+        }
+
+        /// <summary>A NEXUS-L setting (tbl_system_settings), or the fallback when it was never saved.</summary>
+        private static string Setting(string key, string fallback)
+        {
+            try
+            {
+                using (var conn = new MySqlConnection(ConnectionString()))
+                {
+                    conn.Open();
+                    using (var cmd = new MySqlCommand("SELECT svalue FROM tbl_system_settings WHERE skey = @k LIMIT 1", conn))
+                    {
+                        cmd.Parameters.AddWithValue("@k", key);
+                        var v = cmd.ExecuteScalar();
+                        if (v != null && v != DBNull.Value && Convert.ToString(v) != "") return Convert.ToString(v);
+                    }
+                }
+            }
+            catch { }
+            return fallback;
+        }
+
+        /// <summary>
+        /// Settings > E-mail > "Who sends the e-mails": relay = never here; handler = always here; auto = here only while the
+        /// NEXUS-L Outlook Relay has not been seen for the "hand over after" seconds (it is offline).
+        /// </summary>
+        public static bool ShouldSend(out string why)
+        {
+            string transport = Setting("mail.transport", "auto").ToLowerInvariant();
+            if (transport == "handler") { why = ""; return true; }
+            if (transport == "relay") { why = "the Outlook Relay sends (Settings > E-mail)"; return false; }
+            int after = 180;
+            int.TryParse(Setting("mail.fallback_after", "180"), out after);
+            if (after < 30) after = 30;
+            DateTime seen;
+            if (DateTime.TryParse(Setting("mail.relay_seen_at", ""), out seen) && (DateTime.Now - seen).TotalSeconds < after)
+            {
+                why = "the Outlook Relay is online";
+                return false;
+            }
+            why = "";
+            return true;
         }
 
         public void Start()
@@ -76,7 +141,7 @@ namespace Server_HTML_Handler.Services
             {
                 EnsureTable();
                 // Rows left in 'sending' by a crash or shutdown go back to the queue
-                Execute("UPDATE tbl_email_outbox SET status = 'queued' WHERE status = 'sending'", null);
+                Execute("UPDATE tbl_email_outbox SET status = 'queued' WHERE status = 'sending' AND (claimed_at IS NULL OR claimed_at < DATE_SUB(NOW(), INTERVAL 10 MINUTE))", null);
             }
             catch (Exception ex) { LastError = ex.Message; }
             _timer = new Timer(_ => ProcessQueue(), null, TimeSpan.FromSeconds(10), TimeSpan.FromSeconds(Math.Max(5, PollSeconds)));
@@ -97,6 +162,7 @@ namespace Server_HTML_Handler.Services
             {
                 LastRun = DateTime.Now;
                 if (!MailService.Load().IsConfigured) return 0;
+                if (!ShouldSend(out string skip)) { LastError = ""; return 0; }
 
                 var due = new List<(long Id, string To, string Cc, string Subject, string Body, bool Html, int Attempts)>();
                 using (var conn = new MySqlConnection(ConnectionString()))
@@ -120,7 +186,7 @@ namespace Server_HTML_Handler.Services
                 foreach (var row in due)
                 {
                     // Claim the row so a second sender can never send it twice
-                    if (Execute("UPDATE tbl_email_outbox SET status = 'sending', attempts = attempts + 1 WHERE id = @id AND status = 'queued'",
+                    if (Execute("UPDATE tbl_email_outbox SET status = 'sending', attempts = attempts + 1, claimed_at = NOW(), claimed_by = 'handler' WHERE id = @id AND status = 'queued'",
                                 p => p.AddWithValue("@id", row.Id)) == 0) continue;
 
                     string error = MailService.Send(row.To, row.Cc, row.Subject, row.Body, row.Html);
